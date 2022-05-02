@@ -1,0 +1,33 @@
+{
+  "name": "@hyrious/blivec",
+  "version": "0.1.0",
+  "description": "bilibili live danmaku cli",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": "./dist/index.js",
+  "bin": {
+    "bl": "./dist/bin.js"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "node dist/bin.js",
+    "clean": "rimraf dist",
+    "build": "esbuild src/index.ts src/bin.ts --target=node16.15 --outdir=dist"
+  },
+  "repository": "hyrious/blivec",
+  "keywords": [
+    "bilibili",
+    "danmaku"
+  ],
+  "author": "hyrious <hyrious@outlook.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@hyrious/rimraf": "^0.1.0",
+    "@types/node": "^17.0.31",
+    "esbuild": "^0.14.38"
+  }
+}

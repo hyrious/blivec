@@ -1,0 +1,15 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "cSpell.words": [
+    "bilibili",
+    "blivec",
+    "blivedm",
+    "broadcastlv",
+    "clientver",
+    "Danmaku",
+    "danmu",
+    "protover",
+    "roomid"
+  ]
+}
