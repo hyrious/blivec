@@ -1,30 +1,68 @@
 #!/usr/bin/env node
-import { Connection } from "./index.js";
+import fs from "fs";
+import path from "path";
+import { getTempDir, Connection, input, sendDanmaku } from "./index.js";
 
-const [raw_id] = process.argv.slice(2);
+const [raw_id, message] = process.argv.slice(2);
 const id = Number.parseInt(raw_id);
 const safe = Number.isSafeInteger(id) && id > 0;
 
 if (!safe) {
   console.log("Usage: bl <room_id>");
+  console.log('       bl <room_id> "message-to-send" (requires cookie)');
   process.exit(0);
 }
 
-const con = new Connection(id, {
-  init({ title }) {
-    console.log(`listening ${title}`);
-  },
-  message(data) {
-    if (typeof data === "object" && data !== null && data.cmd === "DANMU_MSG") {
-      const message = data.info[1];
-      const user = data.info[2][1];
-      console.log(">", `[${user}]`, message);
-    }
-  },
-  error: console.error,
-});
+if (message) {
+  const tmpdir = getTempDir("blivec");
+  fs.mkdirSync(tmpdir, { recursive: true });
+  const cookie_file = path.join(tmpdir, "cookie.txt");
+  let cookie = "";
+  try {
+    cookie = fs.readFileSync(cookie_file, "utf8");
+  } catch {}
+  if (!cookie) {
+    console.log("Not found cached cookie, please login on bilibili and");
+    console.log("find `SESSDATA` and `bili_jct` from cookies.");
+    console.log();
+    console.log("The `SESSDATA` can only be found through cookies panel.");
+    console.log();
+    console.log("The `bili_jct` can be copied through this script:");
+    console.log("cookieStore.get('bili_jct').then(e=>copy(e.value))");
+    console.log();
+    const SESSDATA = await input("Paste `SESSDATA` here: ");
+    const bili_jct = await input("Paste `bili_jct` here: ");
+    cookie = JSON.stringify({ SESSDATA, bili_jct });
+    fs.writeFileSync(cookie_file, cookie);
+  }
+  try {
+    await sendDanmaku(id, message, JSON.parse(cookie));
+  } catch (err) {
+    console.error(err);
+    fs.rmSync(cookie_file, { maxRetries: 3, recursive: true });
+    console.log("Deleted cookie. Please try again.");
+  }
+} else {
+  function is_object(a: any) {
+    return typeof a === "object" && a !== null;
+  }
 
-process.on("SIGINT", () => {
-  console.log("closing...");
-  con.close();
-});
+  const con = new Connection(id, {
+    init({ title }) {
+      console.log(`listening ${title}`);
+    },
+    message(data) {
+      if (is_object(data) && data.cmd === "DANMU_MSG") {
+        const message = data.info[1];
+        const user = data.info[2][1];
+        console.log(">", `[${user}]`, message);
+      }
+    },
+    error: console.error,
+  });
+
+  process.on("SIGINT", () => {
+    console.log("closing...");
+    con.close();
+  });
+}

@@ -1,7 +1,74 @@
+import os from "os";
+import path from "path";
 import https from "https";
 import { Socket, createConnection } from "net";
 import { inflate, brotliDecompress } from "zlib";
 import { promisify } from "util";
+
+// since Node.js 17.5
+// TODO: remove this declaration when @types/node is updated
+declare function fetch(
+  url: string,
+  init?: { method: string; body: string }
+): Promise<{ text: () => string }>;
+
+const post =
+  typeof fetch !== "undefined"
+    ? (url: string, body: string, params: any) =>
+        fetch(url, { method: "POST", body, ...params })
+    : (url: string, body: string, params: any) =>
+        new Promise<string>((resolve, reject) =>
+          https
+            .request(url, { method: "POST", timeout: 1000, ...params }, res => {
+              const chunks: Buffer[] = [];
+              res.on("data", chunks.push.bind(chunks));
+              res.on("end", () =>
+                resolve(Buffer.concat(chunks).toString("utf8"))
+              );
+            })
+            .end(body)
+            .on("error", reject)
+        );
+
+export function getTempDir(name: string) {
+  const tmpdir = os.tmpdir();
+  const platform = process.platform;
+  if (platform === "darwin" || platform === "win32") {
+    return path.join(tmpdir, name);
+  }
+  const username = path.basename(os.homedir());
+  return path.join(tmpdir, username, name);
+}
+
+export function sendDanmaku(
+  id: number,
+  message: string,
+  { SESSDATA, bili_jct }: { SESSDATA: string; bili_jct: string }
+) {
+  const t = (Date.now() / 1000) | 0;
+  const headers = {
+    Cookie: `SESSDATA=${SESSDATA}`,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  const body =
+    `color=16777215&fontsize=25&mode=1` +
+    `&msg=${encodeURIComponent(message)}` +
+    `&rnd=${t}&roomid=${id}&csrf=${bili_jct}&csrf_token=${bili_jct}`;
+  return post("https://api.live.bilibili.com/msg/send", body, { headers });
+}
+
+export function input(prompt: string) {
+  return new Promise<string>((resolve, reject) => {
+    const stdin = process.stdin;
+    stdin.setEncoding("utf8");
+    stdin.on("data", data => {
+      stdin.resume();
+      resolve(String(data).trim());
+    });
+    stdin.on("error", reject);
+    process.stdout.write(prompt);
+  });
+}
 
 const inflateAsync = /** @__PURE__ */ promisify(inflate);
 const brotliDecompressAsync = /** @__PURE__ */ promisify(brotliDecompress);
@@ -9,10 +76,6 @@ const brotliDecompressAsync = /** @__PURE__ */ promisify(brotliDecompress);
 const EMPTY_BUFFER = /** @__PURE__ */ Buffer.alloc(0);
 
 function noop(_arg0: any) {}
-
-// since Node.js 17.5
-// TODO: remove this declaration when @types/node is updated
-declare function fetch(url: string): Promise<{ text: () => string }>;
 
 const get =
   typeof fetch !== "undefined"
