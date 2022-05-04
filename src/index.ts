@@ -15,7 +15,7 @@ declare function fetch(
 const post =
   typeof fetch !== "undefined"
     ? (url: string, body: string, params: any) =>
-        fetch(url, { method: "POST", body, ...params })
+        fetch(url, { method: "POST", body, ...params }).then(r => r.text())
     : (url: string, body: string, params: any) =>
         new Promise<string>((resolve, reject) =>
           https

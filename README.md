@@ -21,6 +21,9 @@ listening 14917277
 # install it globally, which provides a shortcut name "bl"
 npm i -g @hyrious/blivec
 bl 14917277
+
+# send danmaku (requires cookie)
+bl 14917277 "hello world"
 ```
 
 ### Develop

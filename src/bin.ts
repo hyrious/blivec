@@ -36,7 +36,12 @@ if (message) {
     fs.writeFileSync(cookie_file, cookie);
   }
   try {
-    await sendDanmaku(id, message, JSON.parse(cookie));
+    const ret = await sendDanmaku(id, message, JSON.parse(cookie));
+    const json = JSON.parse(ret);
+    if (json.code != 0) {
+      throw new Error(json.message);
+    }
+    console.log("Message sent.");
   } catch (err) {
     console.error(err);
     fs.rmSync(cookie_file, { maxRetries: 3, recursive: true });
