@@ -5,30 +5,35 @@ import { Socket, createConnection } from "net";
 import { inflate, brotliDecompress } from "zlib";
 import { promisify } from "util";
 
-// since Node.js 17.5
-// TODO: remove this declaration when @types/node is updated
-declare function fetch(
-  url: string,
-  init?: { method: string; body: string }
-): Promise<{ text: () => string }>;
+const inflateAsync = /** @__PURE__ */ promisify(inflate);
+const brotliDecompressAsync = /** @__PURE__ */ promisify(brotliDecompress);
 
-const post =
-  typeof fetch !== "undefined"
-    ? (url: string, body: string, params: any) =>
-        fetch(url, { method: "POST", body, ...params }).then(r => r.text())
-    : (url: string, body: string, params: any) =>
-        new Promise<string>((resolve, reject) =>
-          https
-            .request(url, { method: "POST", timeout: 1000, ...params }, res => {
-              const chunks: Buffer[] = [];
-              res.on("data", chunks.push.bind(chunks));
-              res.on("end", () =>
-                resolve(Buffer.concat(chunks).toString("utf8"))
-              );
-            })
-            .end(body)
-            .on("error", reject)
-        );
+const EMPTY_BUFFER = /** @__PURE__ */ Buffer.alloc(0);
+
+function noop(_arg0: any) {}
+
+const get = (url: string) =>
+  new Promise<string>((resolve, reject) =>
+    https
+      .get(url, res => {
+        const chunks: Buffer[] = [];
+        res.on("data", chunks.push.bind(chunks));
+        res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      })
+      .on("error", reject)
+  );
+
+const post = (url: string, body: string, params: any) =>
+  new Promise<string>((resolve, reject) =>
+    https
+      .request(url, { method: "POST", timeout: 1000, ...params }, res => {
+        const chunks: Buffer[] = [];
+        res.on("data", chunks.push.bind(chunks));
+        res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      })
+      .end(body)
+      .on("error", reject)
+  );
 
 export function getTempDir(name: string) {
   const tmpdir = os.tmpdir();
@@ -69,29 +74,6 @@ export function input(prompt: string) {
     process.stdout.write(prompt);
   });
 }
-
-const inflateAsync = /** @__PURE__ */ promisify(inflate);
-const brotliDecompressAsync = /** @__PURE__ */ promisify(brotliDecompress);
-
-const EMPTY_BUFFER = /** @__PURE__ */ Buffer.alloc(0);
-
-function noop(_arg0: any) {}
-
-const get =
-  typeof fetch !== "undefined"
-    ? (url: string) => fetch(url).then(r => r.text())
-    : (url: string) =>
-        new Promise<string>((resolve, reject) =>
-          https
-            .get(url, res => {
-              const chunks: Buffer[] = [];
-              res.on("data", chunks.push.bind(chunks));
-              res.on("end", () =>
-                resolve(Buffer.concat(chunks).toString("utf8"))
-              );
-            })
-            .on("error", reject)
-        );
 
 const api_index = "https://api.live.bilibili.com/xlive/web-room/v1/index";
 

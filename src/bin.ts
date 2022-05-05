@@ -13,7 +13,32 @@ if (!safe) {
   process.exit(0);
 }
 
-if (message) {
+async function listen() {
+  function is_object(a: any) {
+    return typeof a === "object" && a !== null;
+  }
+
+  const con = new Connection(id, {
+    init({ title }) {
+      console.log(`listening ${title}`);
+    },
+    message(data) {
+      if (is_object(data) && data.cmd === "DANMU_MSG") {
+        const message = data.info[1];
+        const user = data.info[2][1];
+        console.log(">", `[${user}]`, message);
+      }
+    },
+    error: console.error,
+  });
+
+  process.on("SIGINT", () => {
+    console.log("closing...");
+    con.close();
+  });
+}
+
+async function send_message(message: string) {
   const tmpdir = getTempDir("blivec");
   fs.mkdirSync(tmpdir, { recursive: true });
   const cookie_file = path.join(tmpdir, "cookie.txt");
@@ -47,27 +72,12 @@ if (message) {
     fs.rmSync(cookie_file, { maxRetries: 3, recursive: true });
     console.log("Deleted cookie. Please try again.");
   }
-} else {
-  function is_object(a: any) {
-    return typeof a === "object" && a !== null;
-  }
-
-  const con = new Connection(id, {
-    init({ title }) {
-      console.log(`listening ${title}`);
-    },
-    message(data) {
-      if (is_object(data) && data.cmd === "DANMU_MSG") {
-        const message = data.info[1];
-        const user = data.info[2][1];
-        console.log(">", `[${user}]`, message);
-      }
-    },
-    error: console.error,
-  });
-
-  process.on("SIGINT", () => {
-    console.log("closing...");
-    con.close();
-  });
 }
+
+let main: Promise<unknown>;
+if (message) {
+  main = send_message(message);
+} else {
+  main = listen();
+}
+main.catch(console.error);
