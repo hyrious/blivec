@@ -1,6 +1,6 @@
 {
   "name": "@hyrious/blivec",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "bilibili live danmaku cli",
   "type": "module",
   "main": "./dist/index.js",
