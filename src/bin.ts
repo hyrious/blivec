@@ -19,8 +19,13 @@ async function listen() {
   }
 
   const con = new Connection(id, {
-    init({ title }) {
-      console.log(`listening ${title}`);
+    init({ title, live_status, live_start_time }) {
+      console.log(
+        `[blivec] listening ${title}`,
+        live_status
+          ? `(start at ${new Date(live_start_time * 1000).toLocaleString()})`
+          : "(offline)"
+      );
     },
     message(data) {
       if (is_object(data) && data.cmd === "DANMU_MSG") {
@@ -33,7 +38,7 @@ async function listen() {
   });
 
   process.on("SIGINT", () => {
-    console.log("closing...");
+    console.log("\n[blivec] closing...");
     con.close();
   });
 }

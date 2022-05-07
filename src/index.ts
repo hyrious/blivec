@@ -91,7 +91,12 @@ export async function getDanmuInfo(id: number) {
 }
 
 export interface RoomInfo {
-  room_info: { room_id: number; title: string };
+  room_info: {
+    room_id: number;
+    title: string;
+    live_status: 0 | 1;
+    live_start_time: number;
+  };
 }
 
 export async function getRoomInfo(id: number) {
@@ -136,9 +141,9 @@ export class Connection {
   _closed = false;
   _connect_index = 0;
   async connect() {
-    const { room_id, title } = await getRoomInfo(this.roomId);
+    const { room_id, title, ...rest } = await getRoomInfo(this.roomId);
     const { host_list, token } = await getDanmuInfo(room_id);
-    this.info = { room_id, title, token, host_list };
+    this.info = { room_id, title, token, host_list, ...rest };
     (this.events.init || noop)(this.info);
 
     const { host, port } = host_list[this._connect_index];
