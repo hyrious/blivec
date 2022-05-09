@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Added start time info on init.
+
 ## 0.1.2
 
 - Remove `fetch()` to prevent warnings.
