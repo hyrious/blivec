@@ -94,7 +94,9 @@ export interface RoomInfo {
   room_info: {
     room_id: number;
     title: string;
-    live_status: 0 | 1;
+    /** 0: offline, 1: online, 2: playing_uploaded_videos */
+    live_status: 0 | 1 | 2;
+    /** start_time = new Date(live_start_time * 1000) */
     live_start_time: number;
   };
 }
@@ -217,7 +219,7 @@ export class Connection {
   _on_decoded(rs: { type: TYPE; data: any }[]) {
     for (const { type, data } of rs) {
       if (type === "welcome") {
-        this.send(this._encode("heartbeat"));
+        this.heartbeat();
       } else if (type === "heartbeat") {
         clearTimeout(this.timer_heartbeat);
         this.timer_heartbeat = setTimeout(this.heartbeat.bind(this), 30e3);

@@ -22,7 +22,7 @@ async function listen() {
     init({ title, live_status, live_start_time }) {
       console.log(
         `[blivec] listening ${title}`,
-        live_status
+        live_status === 1
           ? `(start at ${new Date(live_start_time * 1000).toLocaleString()})`
           : "(offline)"
       );
