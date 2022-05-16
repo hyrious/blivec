@@ -76,6 +76,8 @@ async function send_message(message: string) {
     console.error(err);
     fs.rmSync(cookie_file, { maxRetries: 3, recursive: true });
     console.log("Deleted cookie. Please try again.");
+  } finally {
+    process.exit(0);
   }
 }
 
