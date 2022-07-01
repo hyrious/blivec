@@ -168,6 +168,10 @@ export class Connection {
     socket.on("data", this._on_data.bind(this));
   }
 
+  get closed() {
+    return this._closed;
+  }
+
   _on_ready() {
     clearTimeout(this.timer_reconnect);
     if (this.info) {
