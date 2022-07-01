@@ -38,8 +38,10 @@ async function listen() {
   });
 
   process.on("SIGINT", () => {
-    console.log("\n[blivec] closing...");
-    con.close();
+    if (!con.closed) {
+      console.log("\n[blivec] closing...");
+      con.close();
+    }
   });
 }
 
