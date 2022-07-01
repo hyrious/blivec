@@ -27,7 +27,7 @@
   "license": "MIT",
   "devDependencies": {
     "@hyrious/rimraf": "^0.1.0",
-    "@types/node": "^17.0.31",
-    "esbuild": "^0.14.38"
+    "@types/node": "^18.0.0",
+    "esbuild": "^0.14.48"
   }
 }
