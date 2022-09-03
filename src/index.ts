@@ -5,17 +5,17 @@ import { Socket, createConnection } from "net";
 import { inflate, brotliDecompress } from "zlib";
 import { promisify } from "util";
 
-const inflateAsync = /** @__PURE__ */ promisify(inflate);
-const brotliDecompressAsync = /** @__PURE__ */ promisify(brotliDecompress);
+const inflateAsync = /* @__PURE__ */ promisify(inflate);
+const brotliDecompressAsync = /* @__PURE__ */ promisify(brotliDecompress);
 
-const EMPTY_BUFFER = /** @__PURE__ */ Buffer.alloc(0);
+const EMPTY_BUFFER = /* @__PURE__ */ Buffer.alloc(0);
 
 function noop(_arg0: any) {}
 
 const get = (url: string) =>
   new Promise<string>((resolve, reject) =>
     https
-      .get(url, res => {
+      .get(url, (res) => {
         const chunks: Buffer[] = [];
         res.on("data", chunks.push.bind(chunks));
         res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
@@ -26,7 +26,7 @@ const get = (url: string) =>
 const post = (url: string, body: string, params: any) =>
   new Promise<string>((resolve, reject) =>
     https
-      .request(url, { method: "POST", timeout: 1000, ...params }, res => {
+      .request(url, { method: "POST", timeout: 1000, ...params }, (res) => {
         const chunks: Buffer[] = [];
         res.on("data", chunks.push.bind(chunks));
         res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
@@ -66,7 +66,7 @@ export function input(prompt: string) {
   return new Promise<string>((resolve, reject) => {
     const stdin = process.stdin;
     stdin.setEncoding("utf8");
-    stdin.on("data", data => {
+    stdin.on("data", (data) => {
       stdin.resume();
       resolve(String(data).trim());
     });
@@ -126,8 +126,8 @@ export class Connection {
   buffer = EMPTY_BUFFER;
   info: ConnectionInfo | null = null;
 
-  timer_reconnect = /** @__PURE__ */ setTimeout(noop);
-  timer_heartbeat = /** @__PURE__ */ setTimeout(noop);
+  timer_reconnect = /* @__PURE__ */ setTimeout(noop);
+  timer_heartbeat = /* @__PURE__ */ setTimeout(noop);
 
   constructor(
     readonly roomId: number,
@@ -196,7 +196,6 @@ export class Connection {
   }
 
   _on_error(err: any) {
-    this.close();
     (this.events.error || noop)(err);
   }
 
@@ -241,7 +240,9 @@ export class Connection {
       tasks.push(this._decode2(buffer.subarray(i, i + size)));
     }
     let rs = await Promise.all(tasks);
-    return rs.flatMap(r => (r.protocol === 2 || r.protocol === 3 ? r.data : r));
+    return rs.flatMap((r) =>
+      r.protocol === 2 || r.protocol === 3 ? r.data : r
+    );
   }
 
   async _decode2(buffer: Buffer) {

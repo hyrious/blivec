@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Fixed closing on first error, it should try to reconnect another server.
+
 ## 0.1.4
 
 - Fixed bugs around terminating:
