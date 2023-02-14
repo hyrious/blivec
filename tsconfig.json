@@ -3,10 +3,10 @@
   "compilerOptions": {
     "noEmit": true,
     "strict": true,
-    "lib": ["esnext"],
-    "module": "esnext",
     "target": "esnext",
-    "moduleResolution": "node",
+    "module": "esnext",
+    "types": ["node"],
+    "lib": ["esnext"],
     "esModuleInterop": true,
     "skipLibCheck": true
   }

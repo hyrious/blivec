@@ -1,79 +1,27 @@
-import os from "os";
-import path from "path";
 import https from "https";
-import { Socket, createConnection } from "net";
-import { inflate, brotliDecompress } from "zlib";
+import { IncomingMessage, RequestOptions } from "http";
+import { createConnection, Socket } from "net";
 import { promisify } from "util";
+import { brotliDecompress, inflate } from "zlib";
+
+const noop = () => {};
+
+const text =
+  (resolve: (value: string) => void) => async (res: IncomingMessage) => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of res) chunks.push(chunk);
+    resolve(Buffer.concat(chunks).toString("utf8"));
+  };
+
+const get = (url: string) =>
+  new Promise<string>((resolve, reject) =>
+    https.get(url, text(resolve)).on("error", reject)
+  );
 
 const inflateAsync = /* @__PURE__ */ promisify(inflate);
 const brotliDecompressAsync = /* @__PURE__ */ promisify(brotliDecompress);
 
 const EMPTY_BUFFER = /* @__PURE__ */ Buffer.alloc(0);
-
-function noop(_arg0: any) {}
-
-const get = (url: string) =>
-  new Promise<string>((resolve, reject) =>
-    https
-      .get(url, (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", chunks.push.bind(chunks));
-        res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-      })
-      .on("error", reject)
-  );
-
-const post = (url: string, body: string, params: any) =>
-  new Promise<string>((resolve, reject) =>
-    https
-      .request(url, { method: "POST", timeout: 1000, ...params }, (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", chunks.push.bind(chunks));
-        res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-      })
-      .end(body)
-      .on("error", reject)
-  );
-
-export function getTempDir(name: string) {
-  const tmpdir = os.tmpdir();
-  const platform = process.platform;
-  if (platform === "darwin" || platform === "win32") {
-    return path.join(tmpdir, name);
-  }
-  const username = path.basename(os.homedir());
-  return path.join(tmpdir, username, name);
-}
-
-export function sendDanmaku(
-  id: number,
-  message: string,
-  { SESSDATA, bili_jct }: { SESSDATA: string; bili_jct: string }
-) {
-  const t = (Date.now() / 1000) | 0;
-  const headers = {
-    Cookie: `SESSDATA=${SESSDATA}`,
-    "Content-Type": "application/x-www-form-urlencoded",
-  };
-  const body =
-    `color=16777215&fontsize=25&mode=1` +
-    `&msg=${encodeURIComponent(message)}` +
-    `&rnd=${t}&roomid=${id}&csrf=${bili_jct}&csrf_token=${bili_jct}`;
-  return post("https://api.live.bilibili.com/msg/send", body, { headers });
-}
-
-export function input(prompt: string) {
-  return new Promise<string>((resolve, reject) => {
-    const stdin = process.stdin;
-    stdin.setEncoding("utf8");
-    stdin.on("data", (data) => {
-      stdin.resume();
-      resolve(String(data).trim());
-    });
-    stdin.on("error", reject);
-    process.stdout.write(prompt);
-  });
-}
 
 const api_index = "https://api.live.bilibili.com/xlive/web-room/v1/index";
 
@@ -91,21 +39,19 @@ export async function getDanmuInfo(id: number) {
 }
 
 export interface RoomInfo {
-  room_info: {
-    room_id: number;
-    title: string;
-    /** 0: offline, 1: online, 2: playing_uploaded_videos */
-    live_status: 0 | 1 | 2;
-    /** start_time = new Date(live_start_time * 1000) */
-    live_start_time: number;
-  };
+  room_id: number;
+  title: string;
+  /** 0: offline, 1: online, 2: playing_uploaded_videos */
+  live_status: 0 | 1 | 2;
+  /** start_time = new Date(live_start_time * 1000) */
+  live_start_time: number;
 }
 
 export async function getRoomInfo(id: number) {
   const info = await get(`${api_index}/getInfoByRoom?room_id=${id}`);
   const { code, message, data } = JSON.parse(info);
   if (code != 0) throw new Error(message);
-  return (data as RoomInfo).room_info;
+  return (data as { room_info: RoomInfo }).room_info;
 }
 
 type TYPE = "heartbeat" | "message" | "welcome" | "unknown" | "join";
@@ -119,7 +65,7 @@ const TYPE_OP_MAP: Record<string, number> = {
   join: 7,
 };
 
-export type ConnectionInfo = RoomInfo["room_info"] & DanmuInfo;
+export type ConnectionInfo = RoomInfo & DanmuInfo;
 
 export class Connection {
   socket: Socket | null = null;
@@ -301,4 +247,106 @@ export class Connection {
   heartbeat() {
     this.send(this._encode("heartbeat"));
   }
+}
+
+const post = (url: string, body: string, params: RequestOptions) =>
+  new Promise<string>((resolve, reject) => {
+    const options = { method: "POST", timeout: 1000, ...params };
+    https.request(url, options, text(resolve)).end(body).on("error", reject);
+  });
+
+export interface Env {
+  SESSDATA: string;
+  bili_jct: string;
+}
+
+export function sendDanmaku(id: number, message: string, env: Env) {
+  const { SESSDATA, bili_jct } = env;
+  const t = Math.floor(Date.now() / 1000);
+  const headers = {
+    Cookie: `SESSDATA=${SESSDATA}`,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  const body =
+    `color=16777215&fontsize=25&mode=1` +
+    `&msg=${encodeURIComponent(message)}` +
+    `&rnd=${t}&roomid=${id}&csrf=${bili_jct}&csrf_token=${bili_jct}`;
+  return post("https://api.live.bilibili.com/msg/send", body, { headers });
+}
+
+export const FAIL = -1;
+export const ENOENT = -60004;
+
+async function getRealRoomId(id: number) {
+  const v1 = "https://api.live.bilibili.com/room/v1/room/room_init";
+  const ret = await get(`${v1}?id=${id}`);
+  const { code, data } = JSON.parse(ret) as {
+    code: number | string;
+    data: Pick<RoomInfo, "room_id" | "live_status">;
+  };
+  if (code == 60004) return ENOENT;
+  if (code == 0 && data.live_status == 1) return data.room_id;
+  return FAIL;
+}
+
+interface Ok<T> {
+  ok: true;
+  data: T;
+}
+
+function ok<T>(data: T): Ok<T> {
+  return { ok: true, data };
+}
+
+interface Err {
+  ok: false;
+  reason: string;
+}
+
+function err(reason: string): Err {
+  return { ok: false, reason };
+}
+
+const api_index_v2 = "https://api.live.bilibili.com/xlive/web-room/v2/index";
+
+export interface RoomPlayInfo {
+  playurl_info: {
+    playurl: {
+      // quality number desc: [{ qn: 150, desc: '高清' }]
+      g_qn_desc: Array<{ qn: number; desc: string }>;
+      stream: Array<{
+        format: Array<{
+          format_name: string;
+          codec: Array<{
+            codec_name: string;
+            current_qn: number;
+            accept_qn: number[];
+            // full url = host + base_url + extra
+            base_url: string;
+            url_info: Array<{
+              host: string;
+              extra: string;
+            }>;
+          }>;
+        }>;
+      }>;
+    };
+  };
+}
+
+export async function getRoomPlayInfo(
+  id: number
+): Promise<Ok<RoomPlayInfo> | Err> {
+  const roomId = await getRealRoomId(id);
+  if (roomId < 0)
+    return err(roomId === ENOENT ? "not found such room" : "failed");
+
+  const url =
+    `${api_index_v2}/getRoomPlayInfo?room_id=${roomId}&` +
+    `platform=web&protocol=0,1&format=0,1,2&codec=0,1&ptype=8&dolby=5`;
+
+  const { code, message, data } = JSON.parse(await get(url));
+  if (code != 0) return err(message);
+
+  return ok(data);
 }

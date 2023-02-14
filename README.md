@@ -1,6 +1,6 @@
 ## <samp>&gt; <ins>b</ins>ilibili-<ins>live</ins>-<ins>c</ins>li</samp>
 
-Personal tool for viewing <ruby>弾幕 <rp>(</rp><rt>danmaku</rt><rp>)</rp></ruby> in bilibili live streaming.
+Personal tool for viewing <ruby>弾幕 <rp>(</rp><rt>danmaku</rt><rp>)</rp></ruby> and other utils in bilibili live streaming.
 
 ### Why
 
@@ -13,17 +13,20 @@ The main goal of this tool is to provide a cheap way to interact with bilibili l
 ```bash
 # start listening danmaku in room 14917277
 npx @hyrious/blivec 14917277
-# example output (press ctrl-c to stop listening)
-listening 14917277
-> [username] message
+[blivc] listening 14917277
+[username] message
 ^C
 
 # install it globally, which provides a shortcut name "bl"
 npm i -g @hyrious/blivec
 bl 14917277
 
-# send danmaku (requires cookie)
+# send danmaku (requires cookie to be put at cwd)
 bl 14917277 "hello world"
+
+# get direct stream url
+bl get 14917277
+https://.../a.flv?b=c...
 ```
 
 ### Develop
@@ -39,6 +42,7 @@ pnpm t 14917277
 - [blivedm](https://github.com/xfgryujk/blivedm)
 - [bilibili-live-ws](https://github.com/simon300000/bilibili-live-ws)
 - [Bilibili-Live-API](https://github.com/lovelyyoshino/Bilibili-Live-API)
+- [bilibili-live-stream](https://github.com/ikexing-cn/bilibili-live-stream)
 
 ### License
 

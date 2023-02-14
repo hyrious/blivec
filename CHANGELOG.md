@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0
+
+- Added fetch stream url function.
+
 ## 0.1.5
 
 - Fixed closing on first error, it should try to reconnect another server.
