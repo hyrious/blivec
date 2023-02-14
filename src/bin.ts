@@ -110,7 +110,7 @@ async function get(id: number) {
   const url = host + base_url + extra;
   console.log(url);
 
-  if (process.env.BLIVC_FFPLAY) {
+  if (process.env.BLIVEC_FFPLAY) {
     const headers = [
       "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1\r\n",
       "Referer: https://live.bilibili.com/\r\n",
