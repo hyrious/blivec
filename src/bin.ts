@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "fs";
+import cp from "child_process";
 import { Connection, getRoomPlayInfo, sendDanmaku } from "./index.js";
 
 const [arg1, arg2] = process.argv.slice(2);
@@ -108,4 +109,13 @@ async function get(id: number) {
 
   const url = host + base_url + extra;
   console.log(url);
+
+  if (process.env.BLIVC_FFPLAY) {
+    const headers = [
+      "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1\r\n",
+      "Referer: https://live.bilibili.com/\r\n",
+    ];
+    const args = [url, "-headers", headers.join(""), "-window_title", "a.flv"];
+    cp.spawnSync("ffplay", args, { stdio: "inherit" });
+  }
 }
