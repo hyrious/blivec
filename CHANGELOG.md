@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Show danmaku on `--play`.
+
 ## 0.2.1
 
 - Added `--play`, `--max` in `get` function.

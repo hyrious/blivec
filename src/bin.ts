@@ -28,7 +28,7 @@ function help() {
   process.exit(0);
 }
 
-function listen(id: number) {
+function listen(id: number, cleanup = () => {}) {
   function is_object(a: any) {
     return typeof a === "object" && a !== null;
   }
@@ -56,8 +56,11 @@ function listen(id: number) {
     if (!con.closed) {
       console.log("\n[blivec] closing...");
       con.close();
+      cleanup();
     }
   });
+
+  return con;
 }
 
 function send(id: number, message: string) {
@@ -133,6 +136,8 @@ async function get(id: number, ...args: string[]) {
       "-window_title",
       title,
     ];
-    cp.spawnSync("ffplay", cmds, { stdio: "inherit" });
+    const child = cp.spawn("ffplay", cmds, { stdio: "inherit" });
+    const con = listen(id, () => child.kill("SIGTERM"));
+    child.once("exit", () => con.close());
   }
 }
