@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Added `--play`, `--max` in `get` function.
+  - `--play`: Call `ffplay` to play the stream.
+  - `--max`: Use the highest quality stream.
+
 ## 0.2.0
 
 - Added fetch stream url function.
