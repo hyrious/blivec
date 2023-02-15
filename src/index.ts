@@ -274,47 +274,13 @@ export function sendDanmaku(id: number, message: string, env: Env) {
   return post("https://api.live.bilibili.com/msg/send", body, { headers });
 }
 
-export const FAIL = -1;
-export const ENOENT = -60004;
-
-async function getRealRoomId(id: number) {
-  const v1 = "https://api.live.bilibili.com/room/v1/room/room_init";
-  const ret = await get(`${v1}?id=${id}`);
-  const { code, data } = JSON.parse(ret) as {
-    code: number | string;
-    data: Pick<RoomInfo, "room_id" | "live_status">;
-  };
-  if (code == 60004) return ENOENT;
-  if (code == 0 && data.live_status == 1) return data.room_id;
-  return FAIL;
-}
-
-interface Ok<T> {
-  ok: true;
-  data: T;
-}
-
-function ok<T>(data: T): Ok<T> {
-  return { ok: true, data };
-}
-
-interface Err {
-  ok: false;
-  reason: string;
-}
-
-function err(reason: string): Err {
-  return { ok: false, reason };
-}
-
-const api_index_v2 = "https://api.live.bilibili.com/xlive/web-room/v2/index";
-
-export interface RoomPlayInfo {
+interface PlayUrlInfo {
   playurl_info: {
     playurl: {
       // quality number desc: [{ qn: 150, desc: '高清' }]
       g_qn_desc: Array<{ qn: number; desc: string }>;
       stream: Array<{
+        protocol_name: string;
         format: Array<{
           format_name: string;
           codec: Array<{
@@ -334,19 +300,80 @@ export interface RoomPlayInfo {
   };
 }
 
-export async function getRoomPlayInfo(
-  id: number
-): Promise<Ok<RoomPlayInfo> | Err> {
-  const roomId = await getRealRoomId(id);
-  if (roomId < 0)
-    return err(roomId === ENOENT ? "not found such room" : "failed");
+interface PlayInfo {
+  container: string;
+  url: string;
+  qn: number;
+  desc: string;
+}
 
-  const url =
-    `${api_index_v2}/getRoomPlayInfo?room_id=${roomId}&` +
-    `platform=web&protocol=0,1&format=0,1,2&codec=0,1&ptype=8&dolby=5`;
+export async function getRoomPlayInfo(id: number) {
+  let code: string | number, message: string, data: any;
 
-  const { code, message, data } = JSON.parse(await get(url));
-  if (code != 0) return err(message);
+  const room_v1 = "https://api.live.bilibili.com/room/v1/room";
+  const room_init = `${room_v1}/room_init`;
+  ({ code, message, data } = JSON.parse(await get(`${room_init}?id=${id}`)));
+  if (code != 0) throw new Error(message);
 
-  return ok(data);
+  const { uid, room_id, live_status, is_locked, encrypted } = data;
+  if (is_locked) throw new Error("room is locked");
+  if (encrypted) throw new Error("room is encrypted");
+  if (live_status !== 1) throw new Error("room is offline");
+
+  const status = `${room_v1}/get_status_info_by_uids`;
+  ({ code, message, data } = JSON.parse(await get(`${status}?uids[]=${uid}`)));
+  if (code != 0) throw new Error(message);
+  const title = data[uid].title + " - " + data[uid].uname;
+
+  const api_index_v2 = "https://api.live.bilibili.com/xlive/web-room/v2/index";
+
+  const streams: Record<string, PlayInfo> = {};
+  const queue_of_qn = [1];
+  const visited = new Set<number>();
+  while (queue_of_qn.length > 0) {
+    const qn = queue_of_qn.shift()!;
+    if (visited.has(qn)) continue;
+    visited.add(qn);
+
+    const url =
+      `${api_index_v2}/getRoomPlayInfo?room_id=${room_id}&qn=${qn}` +
+      `&platform=web&protocol=0,1&format=0,1,2&codec=0,1&ptype=8&dolby=5`;
+    ({ code, message, data } = JSON.parse(await get(url)));
+    if (code != 0) throw new Error(message);
+
+    const { g_qn_desc, stream } = (data as PlayUrlInfo).playurl_info.playurl;
+    const qn_desc = Object.fromEntries(g_qn_desc.map((e) => [e.qn, e.desc]));
+
+    let desc: string, container: string;
+    for (const { protocol_name, format } of stream) {
+      for (const { format_name, codec } of format) {
+        for (const e of codec) {
+          queue_of_qn.push(...e.accept_qn);
+          desc = qn_desc[e.current_qn];
+          if (protocol_name.includes("http_hls")) {
+            container = "m3u8";
+            desc += "-hls";
+          } else {
+            container = format_name;
+          }
+          if (e.codec_name === "hevc") {
+            desc += "-h265";
+          }
+          const { host, extra } = sample(e.url_info);
+          streams[desc] = {
+            container,
+            url: host + e.base_url + extra,
+            qn,
+            desc: qn_desc[e.current_qn],
+          };
+        }
+      }
+    }
+  }
+
+  function sample<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  return { title, streams };
 }

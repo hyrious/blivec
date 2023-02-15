@@ -3,12 +3,12 @@ import fs from "fs";
 import cp from "child_process";
 import { Connection, getRoomPlayInfo, sendDanmaku } from "./index.js";
 
-const [arg1, arg2] = process.argv.slice(2);
+const [arg1, arg2, ...rest] = process.argv.slice(2);
 
 if (arg1 === "get") {
   const id = Number.parseInt(arg2);
   if (Number.isSafeInteger(id) && id > 0) {
-    get(id);
+    get(id, ...rest);
   } else {
     help();
   }
@@ -22,9 +22,9 @@ if (arg1 === "get") {
 }
 
 function help() {
-  console.log("Usage: bl <room_id>             # listen danmaku");
-  console.log("       bl <room_id> <message>   # send danmaku");
-  console.log("       bl get <room_id>         # get stream url");
+  console.log("Usage: bl <room_id>              # listen danmaku");
+  console.log("       bl <room_id> <message>    # send danmaku");
+  console.log("       bl get <room_id> [--play] # get stream url");
   process.exit(0);
 }
 
@@ -95,27 +95,44 @@ function send(id: number, message: string) {
   }
 }
 
-async function get(id: number) {
-  const info = await getRoomPlayInfo(id);
-  if (!info.ok) {
-    console.log("Error:", info.reason);
+async function get(id: number, ...args: string[]) {
+  let title: string;
+  let urls: [qn: number, url: string][] = [];
+
+  try {
+    const info = await getRoomPlayInfo(id);
+    title = info.title;
+    console.log(title);
+    console.log();
+    for (const name in info.streams) {
+      const stream = info.streams[name];
+      urls.push([stream.qn, stream.url]);
+      console.log(`  ${name}: ${stream.url}`);
+      console.log();
+    }
+  } catch (err: any) {
+    console.log("Error:", err.message);
     process.exit(1);
   }
 
-  const platurl = info.data.playurl_info.playurl;
-  const codec = platurl.stream[0].format[0].codec[0];
-  const { base_url, url_info } = codec;
-  const { host, extra } = url_info[(Math.random() * url_info.length) | 0];
-
-  const url = host + base_url + extra;
-  console.log(url);
-
-  if (process.env.BLIVEC_FFPLAY) {
+  if (args.includes("--play")) {
+    const url = args.includes("--max")
+      ? urls.reduce((a, b) => (a[0] > b[0] ? a : b))[1]
+      : urls[0][1];
     const headers = [
       "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1\r\n",
       "Referer: https://live.bilibili.com/\r\n",
     ];
-    const args = [url, "-headers", headers.join(""), "-window_title", "a.flv"];
-    cp.spawnSync("ffplay", args, { stdio: "inherit" });
+    const cmds = [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      url,
+      "-headers",
+      headers.join(""),
+      "-window_title",
+      title,
+    ];
+    cp.spawnSync("ffplay", cmds, { stdio: "inherit" });
   }
 }
