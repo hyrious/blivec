@@ -16,7 +16,6 @@ Usage: bl <room_id>                      # listen danmaku
 
        bl d <room_id> [--interval=1]     # dd mode
           --interval=<minutes>           # set 0 to disable polling
-          --max                          # use highest quality
           --mpv                          # open in mpv instead
 `.trim();
 
