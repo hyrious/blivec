@@ -66,6 +66,11 @@ const TYPE_OP_MAP: Record<string, number> = {
 };
 
 export type ConnectionInfo = RoomInfo & DanmuInfo;
+export interface Events {
+  init?: (info: ConnectionInfo) => void;
+  message?: (data: any) => void;
+  error?: (err: any) => void;
+}
 
 export class Connection {
   socket: Socket | null = null;
@@ -75,14 +80,7 @@ export class Connection {
   timer_reconnect = /* @__PURE__ */ setTimeout(noop);
   timer_heartbeat = /* @__PURE__ */ setTimeout(noop);
 
-  constructor(
-    readonly roomId: number,
-    readonly events: {
-      init?: (info: ConnectionInfo) => void;
-      message?: (data: any) => void;
-      error?: (err: any) => void;
-    } = {}
-  ) {
+  constructor(readonly roomId: number, readonly events: Events = {}) {
     this.reconnect();
   }
 
@@ -166,6 +164,7 @@ export class Connection {
   }
 
   _on_decoded(rs: { type: TYPE; data: any }[]) {
+    if (this._closed) return;
     for (const { type, data } of rs) {
       if (type === "welcome") {
         this.heartbeat();

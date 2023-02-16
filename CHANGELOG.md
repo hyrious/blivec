@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0
+
+- Removed `--play` and `--max` in `get` function.
+- Added `--json` in `get` function to output json format.
+- Added `d` function, it has these flags:
+  - `--interval=<minutes>`: Loop querying the live status and play the stream when it's live.\
+    Default interval is `1` minute, meaning <samp>loop { sleep(1min); check_live() }</samp>.\
+    Set it to `0` to disable the loop so that it only check once and exit if not online.\
+    Any value less than `0` will be treated as `0`.
+  - `--mpv`: Call `mpv` instead of `ffplay`.
+
 ## 0.2.2
 
 - Show danmaku on `--play`.
