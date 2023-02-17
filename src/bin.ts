@@ -205,10 +205,11 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
   return con;
 }
 
-function sigint(con: Connection) {
+function sigint(con: Connection, { json = false } = {}) {
   process.on("SIGINT", () => {
     if (!con.closed) {
-      console.log("\n[blivec] closing...");
+      if (json) console.log(JSON.stringify({ cmd: "exit" }));
+      else console.log("\n[blivec] closing...");
       con.close();
     }
   });
@@ -251,7 +252,7 @@ if (arg1 === "get" || arg1 === "d" || arg1 === "dd") {
       await send(id, arg2);
     } else {
       const con = listen(id, { json });
-      sigint(con);
+      sigint(con, { json });
     }
   } else {
     help();
