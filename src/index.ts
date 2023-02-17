@@ -263,7 +263,7 @@ export function sendDanmaku(id: number, message: string, env: Env) {
   const { SESSDATA, bili_jct } = env;
   const t = Math.floor(Date.now() / 1000);
   const headers = {
-    Cookie: `SESSDATA=${SESSDATA}`,
+    "Cookie": `SESSDATA=${SESSDATA}`,
     "Content-Type": "application/x-www-form-urlencoded",
   };
   const body =
@@ -375,4 +375,18 @@ export async function getRoomPlayInfo(id: number) {
   }
 
   return { title, streams };
+}
+
+export function testUrl(url: string, headers: string[] = []) {
+  if (!url) return false;
+  const options: https.RequestOptions = {};
+  options.headers = Object.fromEntries(headers.map((e) => e.split(": ")));
+  return new Promise<boolean>((resolve) => {
+    https
+      .get(url, options, (res) => {
+        resolve(res.statusCode === 200 ? true : false);
+        res.destroy();
+      })
+      .once("error", () => resolve(false));
+  });
 }

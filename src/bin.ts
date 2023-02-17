@@ -3,7 +3,13 @@ import fs from "fs";
 import rl from "readline";
 import cp, { ChildProcess } from "child_process";
 import { setTimeout } from "timers/promises";
-import { Connection, Events, getRoomPlayInfo, sendDanmaku } from "./index.js";
+import {
+  Connection,
+  Events,
+  getRoomPlayInfo,
+  sendDanmaku,
+  testUrl,
+} from "./index.js";
 
 const help_text = `
 Usage: bl <room_id>                      # listen danmaku
@@ -112,6 +118,11 @@ async function get(id: number, { json = false } = {}) {
 }
 
 async function D(id: number, { interval = 1, mpv = false } = {}) {
+  const headers = [
+    "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
+    "Referer: https://live.bilibili.com/",
+  ];
+
   type RoomPlayInfo = Awaited<ReturnType<typeof getRoomPlayInfo>>;
   let info: RoomPlayInfo | null = null;
   console.log(
@@ -120,8 +131,13 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
   );
   while (info === null) {
     info = await getRoomPlayInfo(id).catch(() => null);
+    if (info && !(await testUrl(fst(info.streams).url, headers))) info = null;
     if (info || interval === 0) break;
     await setTimeout(interval * 60 * 1000);
+  }
+  function fst<T extends {}>(obj: T): T[keyof T] {
+    for (const key in obj) return obj[key];
+    return {} as any;
   }
 
   if (info === null) {
@@ -167,10 +183,6 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
 
   console.log("[blivec] Now playing:", `[${selected}] ${title}`);
   const url = streams[selected].url;
-  const headers = [
-    "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
-    "Referer: https://live.bilibili.com/",
-  ];
 
   let child: ChildProcess;
   if (mpv) {

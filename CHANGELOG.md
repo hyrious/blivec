@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Improve dd mode: wait for first available stream.
+
 ## 0.3.0
 
 - Removed `--play` and `--max` in `get` function.
