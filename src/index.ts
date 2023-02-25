@@ -70,6 +70,7 @@ export interface Events {
   init?: (info: ConnectionInfo) => void;
   message?: (data: any) => void;
   error?: (err: any) => void;
+  quit?: () => void;
 }
 
 export class Connection {
@@ -237,6 +238,7 @@ export class Connection {
     this._closed = true;
     clearTimeout(this.timer_heartbeat);
     clearTimeout(this.timer_reconnect);
+    (this.events.quit || noop)();
     if (this.socket) {
       this.socket.end();
       this.socket = null;

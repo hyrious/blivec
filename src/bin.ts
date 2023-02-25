@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+import os from "os";
 import fs from "fs";
+import { join } from "path";
 import rl from "readline";
 import cp, { ChildProcess } from "child_process";
 import { setTimeout } from "timers/promises";
@@ -30,6 +32,32 @@ function help() {
 }
 
 function listen(id: number, { json = false } = {}) {
+  let repl: rl.Interface | undefined;
+
+  function setup_repl() {
+    if (process.stdout.isTTY) {
+      console.log('[blivec] type "> message" to send danmaku');
+      repl = rl.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        prompt: "",
+      });
+      repl.on("line", (line) => {
+        line = line.trim();
+        if (line.startsWith("> ") && line.length > 2) {
+          rl.moveCursor(process.stdout, 0, -1); // move up
+          rl.clearLine(process.stdout, 0); // clear the user input
+          line = line.slice(2);
+          send(id, line).catch(console.error);
+        } else {
+          console.log(
+            '[blivec] message needs to start with "> " (space is required)'
+          );
+        }
+      });
+    }
+  }
+
   const events: Events = json
     ? {
         init: (data) => console.log(JSON.stringify({ cmd: "init", data })),
@@ -44,6 +72,7 @@ function listen(id: number, { json = false } = {}) {
           } else {
             console.log(`[blivec] listening ${title} (offline)`);
           }
+          setup_repl();
         },
         message(a) {
           if (typeof a === "object" && a !== null && a.cmd === "DANMU_MSG") {
@@ -53,6 +82,7 @@ function listen(id: number, { json = false } = {}) {
           }
         },
         error: console.error,
+        quit: () => repl && repl.close(),
       };
 
   return new Connection(id, events);
@@ -67,13 +97,24 @@ async function send(id: number, message: string) {
     console.log();
   }
 
-  if (!fs.existsSync("cookie.txt")) {
+  function cookiePath(path?: string | undefined) {
+    if (fs.existsSync("cookie.txt")) return "cookie.txt";
+    path = join(os.homedir(), "cookie.txt");
+    if (fs.existsSync(path)) return path;
+    path = join(os.homedir(), ".config", "cookie.txt");
+    if (fs.existsSync(path)) return path;
+    path = join(os.homedir(), ".config", "blivec", "cookie.txt");
+    if (fs.existsSync(path)) return path;
+  }
+
+  const path = cookiePath();
+  if (!path) {
     console.log('Please create a file "cookie.txt" in current directory.');
     example();
     process.exit(1);
   }
 
-  const cookie = fs.readFileSync("cookie.txt", "utf-8");
+  const cookie = fs.readFileSync(path, "utf-8");
   let env = { SESSDATA: "", bili_jct: "" };
   for (const line of cookie.split("\n")) {
     if (line.startsWith("SESSDATA=")) {
@@ -189,13 +230,15 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
     const args = ["--quiet"];
     args.push("--http-header-fields=" + headers.join(","));
     args.push("--title=" + title);
+    args.push("--geometry=50%");
     args.push(url);
-    child = cp.spawn("mpv", args, { stdio: "inherit" });
+    child = cp.spawn("mpv", args, { stdio: "inherit", detached: true });
+    child.unref();
   } else {
-    // ffplay
     const args = ["-hide_banner", "-loglevel", "error"];
     args.push("-headers", headers.map((e) => e + "\r\n").join(""));
     args.push("-window_title", title);
+    args.push("-x", "1280", "-y", "720");
     args.push(url);
     child = cp.spawn("ffplay", args, { stdio: "inherit" });
   }
