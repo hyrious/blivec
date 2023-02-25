@@ -1,6 +1,6 @@
 {
   "name": "@hyrious/blivec",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "bilibili live cli",
   "type": "module",
   "main": "./dist/index.js",
