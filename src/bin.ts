@@ -55,6 +55,10 @@ function listen(id: number, { json = false } = {}) {
           );
         }
       });
+      repl.on("SIGINT", () => {
+        repl && repl.close();
+        process.exit(0);
+      });
     }
   }
 
@@ -250,11 +254,13 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
 
 function sigint(con: Connection, { json = false } = {}) {
   process.on("SIGINT", () => {
-    if (!con.closed) {
-      if (json) console.log(JSON.stringify({ cmd: "exit" }));
-      else console.log("\n[blivec] closing...");
-      con.close();
-    }
+    process.exit(0);
+  });
+  // note: both process.on(SIGINT) and repl.on(SIGINT) finally go here
+  process.on("exit", () => {
+    if (json) console.log(JSON.stringify({ cmd: "exit" }));
+    else console.log("\n[blivec] closing...");
+    con.close();
   });
 }
 
