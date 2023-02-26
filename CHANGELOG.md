@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.4
+
+- Improved retry logic in DD mode.
+  - Note that now close the player window does not kill the program.
+    The correct way to exit is to press `ctrl-c` in the terminal.
+
+## 0.3.3
+
+- Fixed ctrl-c not working well with readline.
+
+## 0.3.2
+
+- Added repl mode in listening danmaku.
+
 ## 0.3.1
 
 - Improve dd mode: wait for first available stream.
