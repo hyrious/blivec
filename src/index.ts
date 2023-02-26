@@ -69,8 +69,10 @@ export type ConnectionInfo = RoomInfo & DanmuInfo;
 export interface Events {
   init?: (info: ConnectionInfo) => void;
   message?: (data: any) => void;
-  error?: (err: any) => void;
+  error?: (err: Error) => void;
   quit?: () => void;
+  pause?: () => void;
+  resume?: () => void;
 }
 
 export class Connection {
@@ -83,6 +85,22 @@ export class Connection {
 
   constructor(readonly roomId: number, readonly events: Events = {}) {
     this.reconnect();
+  }
+
+  _temp: any[] | null = null;
+  pause() {
+    this._temp || (this._temp = []);
+    (this.events.pause || noop)();
+  }
+  resume() {
+    (this.events.resume || noop)();
+    const temp = this._temp;
+    if (temp) {
+      this._temp = null;
+      for (const data of temp) {
+        (this.events.message || noop)(data);
+      }
+    }
   }
 
   _closed = false;
@@ -103,7 +121,11 @@ export class Connection {
     clearTimeout(this.timer_reconnect);
     this.buffer = EMPTY_BUFFER;
 
-    const socket = await this.connect();
+    const socket = await this.connect().catch(() => null);
+    if (socket === null) {
+      this._on_close();
+      return;
+    }
     this.socket = socket;
     this.timer_reconnect = setTimeout(this.reconnect.bind(this), 45e3);
 
@@ -140,8 +162,9 @@ export class Connection {
     }
   }
 
-  _on_error(err: any) {
+  _on_error(err: Error) {
     (this.events.error || noop)(err);
+    this.socket = null;
   }
 
   _on_data(buffer: Buffer) {
@@ -173,7 +196,11 @@ export class Connection {
         clearTimeout(this.timer_heartbeat);
         this.timer_heartbeat = setTimeout(this.heartbeat.bind(this), 30e3);
       } else if (type === "message") {
-        (this.events.message || noop)(data);
+        if (this._temp) {
+          this._temp.push(data);
+        } else {
+          (this.events.message || noop)(data);
+        }
       }
     }
   }
