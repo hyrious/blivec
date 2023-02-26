@@ -206,6 +206,7 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
   );
 
   let con!: Connection;
+  let child!: cp.ChildProcess;
 
   const headers = [
     "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
@@ -303,7 +304,7 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
     if (!selected) return;
 
     console.log("[blivec] Now playing:", `[${selected}] ${title}`);
-    const child = play(info.streams[selected].url, title);
+    child = play(info.streams[selected].url, title);
     con ||= listen(id);
     con.resume();
     child.on("exit", () => {
@@ -313,6 +314,16 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
   }
 
   await replay();
+
+  const quit = con.events.quit;
+  con.events.quit = () => {
+    quit && quit();
+    if (process.platform === "win32") {
+      cp.execSync("taskkill /pid " + child.pid + " /T /F");
+    } else {
+      process.kill(-child.pid!, "SIGTERM");
+    }
+  };
 
   return con;
 }
