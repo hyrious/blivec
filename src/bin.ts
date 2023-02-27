@@ -357,5 +357,20 @@ if (arg1 === "get" || arg1 === "d" || arg1 === "dd") {
       const con = await D(id, { interval, mpv, on_close });
       con && sigint(con);
     }
+  } else {
+    console.log(help);
+  }
+} else {
+  const id = Number.parseInt(arg1);
+  const json = arg2 === "--json";
+  if (Number.isSafeInteger(id) && id > 0) {
+    if (arg2 && !json) {
+      await send(id, arg2);
+    } else {
+      const con = listen(id, { json });
+      sigint(con, { json });
+    }
+  } else {
+    console.log(help);
   }
 }

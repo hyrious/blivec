@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.6
+
+- Fixed missing help and listen function in 0.3.5.
+
+## 0.3.5
+
+- Refactor: reuse readline instance.
+
 ## 0.3.4
 
 - Improved retry logic in DD mode.
