@@ -6,17 +6,14 @@ import { brotliDecompress, inflate } from "zlib";
 
 const noop = () => {};
 
-const text =
-  (resolve: (value: string) => void) => async (res: IncomingMessage) => {
-    const chunks: Buffer[] = [];
-    for await (const chunk of res) chunks.push(chunk);
-    resolve(Buffer.concat(chunks).toString("utf8"));
-  };
+const text = (resolve: (value: string) => void) => async (res: IncomingMessage) => {
+  const chunks: Buffer[] = [];
+  for await (const chunk of res) chunks.push(chunk);
+  resolve(Buffer.concat(chunks).toString("utf8"));
+};
 
 const get = (url: string) =>
-  new Promise<string>((resolve, reject) =>
-    https.get(url, text(resolve)).on("error", reject)
-  );
+  new Promise<string>((resolve, reject) => https.get(url, text(resolve)).on("error", reject));
 
 const inflateAsync = /* @__PURE__ */ promisify(inflate);
 const brotliDecompressAsync = /* @__PURE__ */ promisify(brotliDecompress);
@@ -151,7 +148,7 @@ export class Connection {
           platform: "web",
           clientver: "2.0.11",
           type: 2,
-        })
+        }),
       );
     }
   }
@@ -213,9 +210,7 @@ export class Connection {
       tasks.push(this._decode2(buffer.subarray(i, i + size)));
     }
     let rs = await Promise.all(tasks);
-    return rs.flatMap((r) =>
-      r.protocol === 2 || r.protocol === 3 ? r.data : r
-    );
+    return rs.flatMap((r) => (r.protocol === 2 || r.protocol === 3 ? r.data : r));
   }
 
   async _decode2(buffer: Buffer) {

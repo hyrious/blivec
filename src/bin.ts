@@ -3,18 +3,11 @@ import os from "os";
 import fs from "fs";
 import tty from "tty";
 import { join } from "path";
-import rl from "readline";
-import cp, { ChildProcess } from "child_process";
-import { setTimeout } from "timers/promises";
-import {
-  Connection,
-  Events,
-  getRoomPlayInfo,
-  sendDanmaku,
-  testUrl,
-} from "./index.js";
+import cp from "child_process";
+import readline from "readline";
+import { Connection, Events, getRoomPlayInfo, sendDanmaku, testUrl } from "./index.js";
 
-const help_text = `
+const help = `
 Usage: bl <room_id>                      # listen danmaku
           --json                         # print all events in json
 
@@ -26,91 +19,89 @@ Usage: bl <room_id>                      # listen danmaku
        bl d <room_id> [--interval=1]     # dd mode
           --interval=<minutes>           # set 0 to disable polling
           --mpv                          # open in mpv instead
+          --on-close=<behavior>          # do something on window close
+                      default            # restart player
+                      ask                # ask quality again
+                      quit               # quit DD mode
 `.trim();
 
-const hasColors = tty.WriteStream.prototype.hasColors();
+const has_colors = tty.WriteStream.prototype.hasColors();
 
-function help() {
-  console.log(help_text);
-}
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-function format(beg: number, end: number) {
-  return hasColors
-    ? (str: any) => "\x1B[" + beg + "m" + str + "\x1B[" + end + "m"
-    : (str: any) => str;
-}
-
+const format = (s: number, e: number) =>
+  has_colors ? (m: string) => "\x1B[" + s + "m" + m + "\x1B[" + e + "m" : (m: string) => m;
 const red = format(31, 39);
 const cyan = format(36, 39);
 const black = format(30, 39);
 const bgRed = format(41, 49);
-function print_error(msg: string) {
-  console.error(`${bgRed(black("\u2009ERROR\u2009"))} ${red(msg)}`);
-}
+const bgCyan = format(46, 49);
+const log = {
+  error: (msg: string) => console.error(`${bgRed(black(" ERROR "))} ${red(msg)}`),
+  info: (msg: string) => console.error(`${bgCyan(black(" BLIVC "))} ${cyan(msg)}`),
+  catch_error: (error: Error) => log.error(error.message),
+};
 
-function print_info(msg: string) {
-  console.error(`${cyan("\u2009INFO\u2009")} ${cyan(msg)}`);
+// Reuse this repl during the whole program
+// 1. Listen 'line' event in danmaku mode to send message
+// 2. Question about the stream quality in DD mode, this will temporarily eat the next 'line' event,
+//    @see https://github.com/nodejs/node/blob/-/lib/internal/readline/interface.js#L408
+let repl: readline.Interface | undefined;
+function setup_repl() {
+  if (!repl) {
+    repl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: "",
+    });
+    repl.on("SIGINT", () => {
+      repl && repl.close();
+      process.exit(0); // trigger process event 'exit'
+    });
+  }
+  return repl;
 }
-
-function error_exit(error: Error): never {
-  print_error(error.message);
-  process.exit(1);
+function quit_repl() {
+  if (repl) {
+    repl.close();
+    repl = void 0;
+  }
 }
 
 function listen(id: number, { json = false } = {}) {
-  let repl: rl.Interface | undefined;
+  let count = 0;
 
-  function setup_repl() {
-    if (process.stdout.isTTY && !repl) {
-      console.log('[blivec] type "> message" to send danmaku');
-      repl = rl.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-        prompt: "",
-      });
-      repl.on("line", (line) => {
-        line = line.trim();
-        if (line.startsWith("> ") && line.length > 2) {
-          rl.moveCursor(process.stdout, 0, -1); // move up
-          rl.clearLine(process.stdout, 0); // clear the user input
-          line = line.slice(2);
-          send(id, line).catch((error: Error) => {
-            print_error(error.message);
-          });
-        } else {
-          console.log(
-            '[blivec] message needs to start with "> " (space is required)'
-          );
-        }
-      });
-      repl.on("SIGINT", () => {
-        repl && repl.close();
-        process.exit(0);
-      });
-    }
-  }
-
-  let first = 0;
   const events: Events = json
     ? {
         init: (data) => console.log(JSON.stringify({ cmd: "init", data })),
         message: (data) => console.log(JSON.stringify(data)),
-        error: (err) => print_error(err.message),
+        error: log.catch_error,
       }
     : {
         init({ title, live_status, live_start_time }) {
-          if (first === 0) {
+          if (count === 0) {
             if (live_status === 1) {
               const time = new Date(live_start_time * 1000).toLocaleString();
-              console.log(`[blivec] listening ${title} (start at ${time})`);
+              log.info(`listening ${title} (start at ${time})`);
             } else {
-              console.log(`[blivec] listening ${title} (offline)`);
+              log.info(`listening ${title} (offline)`);
             }
-            setup_repl();
+            const repl = setup_repl();
+            repl.on("line", (line) => {
+              line = line.trim();
+              if (line.startsWith("> ") && line.length > 2) {
+                readline.moveCursor(process.stdout, 0, -1); // move up
+                readline.clearLine(process.stdout, 0); // clear the user input
+                line = line.slice(2);
+                send(id, line).catch(log.catch_error);
+              } else {
+                log.info('message needs to start with "> " (space is required)');
+              }
+            });
           } else {
-            print_info(`reconnected (x${first})`);
+            log.info(`reconnected (x${count})`);
           }
-          first++;
+          count++;
         },
         message(a) {
           if (typeof a === "object" && a !== null && a.cmd === "DANMU_MSG") {
@@ -119,8 +110,8 @@ function listen(id: number, { json = false } = {}) {
             console.log(`[${user}]`, message);
           }
         },
-        error: (err) => print_error(err.message),
-        quit: () => repl && repl.close(),
+        error: log.catch_error,
+        quit: quit_repl,
         pause: () => repl && repl.pause(),
         resume: () => repl && repl.resume(),
       };
@@ -149,7 +140,7 @@ async function send(id: number, message: string) {
 
   const path = cookiePath();
   if (!path) {
-    console.error('Please create a file "cookie.txt" in current directory.');
+    log.error('Please create a file "cookie.txt" in current directory.');
     example();
     process.exit(1);
   }
@@ -166,22 +157,18 @@ async function send(id: number, message: string) {
   }
 
   if (env.SESSDATA && env.bili_jct) {
-    await sendDanmaku(id, message, env).catch((err) => {
-      print_error(err.message);
-    });
+    await sendDanmaku(id, message, env).catch(log.catch_error);
   } else {
-    print_error("Invalid cookie.txt");
+    log.error("Invalid cookie.txt");
     example();
-    process.exit(1);
   }
 }
 
 async function get(id: number, { json = false } = {}) {
   try {
     const info = await getRoomPlayInfo(id);
-    const title = info.title;
     if (!json) {
-      console.log("Title:", title);
+      console.log("Title:", info.title);
       console.log();
     }
     for (const name in info.streams) {
@@ -194,16 +181,13 @@ async function get(id: number, { json = false } = {}) {
     if (json) {
       console.log(JSON.stringify(info, null, 2));
     }
-  } catch (err: any) {
-    error_exit(err);
+  } catch (err) {
+    log.catch_error(err);
   }
 }
 
-async function D(id: number, { interval = 1, mpv = false } = {}) {
-  console.log(
-    `[blivec] DD ${id}`,
-    interval > 0 ? `every ${interval} minutes` : "once"
-  );
+async function D(id: number, { interval = 1, mpv = false, on_close = "default" } = {}) {
+  log.info(`DD ${id} ${interval > 0 ? `every ${interval} minutes` : "once"}`);
 
   let con!: Connection;
   let child!: cp.ChildProcess;
@@ -218,98 +202,95 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
     let info: RoomPlayInfo | null = null;
     while (info === null) {
       info = await getRoomPlayInfo(id).catch(() => null);
-      if (info && !(await testUrl(fst(info.streams).url, headers))) info = null;
+      if (info && !(await testUrl(first(info.streams).url, headers))) info = null;
       if (info || interval === 0) break;
-      await setTimeout(interval * 60 * 1000);
+      await delay(interval * 60 * 1000);
     }
-    function fst<T extends {}>(obj: T): T[keyof T] {
+    function first<T extends {}>(obj: T): T[keyof T] {
       for (const key in obj) return obj[key];
       return {} as any;
     }
     return info;
   }
 
-  async function ask(info: RoomPlayInfo) {
+  // returns undefined if user inputs 'n'
+  async function ask(info: RoomPlayInfo): Promise<string | undefined> {
     const { title, streams } = info;
-    console.log("[blivec] " + "=====".repeat(10));
-    console.log("[blivec] Title:", title);
-    console.log("[blivec] " + "=====".repeat(10));
-
-    console.log("[blivec] Available streams:");
+    log.info("=====".repeat(12));
+    log.info("Title: " + title);
+    log.info("=====".repeat(12));
+    log.info("Available streams:");
     const names = Object.keys(streams);
     const width = names.length > 9 ? 2 : 1;
-    names.forEach((name, index) => {
-      console.log(`  ${String(index + 1).padStart(width)}: ${name}`);
+    const choices: Array<number | string> = [];
+    for (let i = 0; i < names.length; i++) {
+      const name = names[i];
+      log.info(`  ${String(i + 1).padStart(width)}: ${name}`);
+      choices.push(i + 1);
+    }
+    choices.push("Y=1", "max", "n");
+    const repl = setup_repl();
+    const answer = await new Promise<string>((resolve) => {
+      repl.question(`Choose a stream, or give up: (${choices.join("/")}) `, (a) => resolve(a || "Y"));
     });
-    const input = rl.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-    const choices = Array.from({ length: names.length }, (_, i) => i + 1);
-    const hint = [...choices, "Y=1", "max", "n"].join("/");
-    const choice = await new Promise<string>((resolve) => {
-      input.question(
-        `[blivec] Choose a stream, or give up: (${hint}) `,
-        (a) => {
-          input.close();
-          resolve(a || "Y");
-        }
-      );
-    });
-    const i = Number.parseInt(choice);
     let selected = names[0];
+    let i = Number.parseInt(answer);
     if (Number.isSafeInteger(i) && 1 <= i && i <= names.length) {
       selected = names[i - 1];
     } else {
-      const a = choice[0].toLowerCase();
-      if (a === "n") {
-        return;
-      } else if (a === "m") {
-        selected = names.reduce((a, b) =>
-          streams[a].qn > streams[b].qn ? a : b
-        );
+      switch (answer[0].toLowerCase()) {
+        case "n":
+          return;
+        case "m":
+          selected = names.reduce((a, b) => (streams[a].qn > streams[b].qn ? a : b));
+          break;
       }
     }
     return selected;
   }
 
   function play(url: string, title: string) {
-    let child: ChildProcess;
     if (mpv) {
       const args = ["--quiet"];
       args.push("--http-header-fields=" + headers.join(","));
       args.push("--title=" + title);
       args.push("--geometry=50%");
       args.push(url);
-      child = cp.spawn("mpv", args, { stdio: "inherit", detached: true });
-      child.unref();
+      return cp.spawn("mpv", args, { stdio: "ignore", detached: true });
     } else {
       const args = ["-hide_banner", "-loglevel", "error"];
       args.push("-headers", headers.map((e) => e + "\r\n").join(""));
       args.push("-window_title", title);
-      args.push("-x", "1280", "-y", "720");
+      args.push("-x", "720", "-y", "405");
       args.push(url);
-      child = cp.spawn("ffplay", args, { stdio: "inherit" });
+      return cp.spawn("ffplay", args, { stdio: "ignore" });
     }
-    return child;
   }
 
   let selected: string | undefined;
-  async function replay() {
+  async function replay(initial = true) {
     const info = await poll();
-    if (!info) return;
+    if (!info) process.exit(0);
 
-    const { title } = info;
-    selected ||= await ask(info);
-    if (!selected) return;
+    if (initial) {
+      selected = await ask(info);
+    } else if (on_close === "default") {
+      selected ||= await ask(info);
+    } else if (on_close === "ask") {
+      selected = await ask(info);
+    } else if (on_close === "quit" || on_close === "exit") {
+      selected = void 0;
+    }
+    if (!selected) process.exit(0);
 
-    console.log("[blivec] Now playing:", `[${selected}] ${title}`);
-    child = play(info.streams[selected].url, title);
+    log.info(`Now playing: [${selected}] ${info.title}`);
+    child = play(info.streams[selected].url, info.title);
     con ||= listen(id);
     con.resume();
     child.on("exit", () => {
       con.pause();
-      setTimeout(100).then(replay);
+      log.info('to exit, press "Ctrl+C" in the console');
+      setTimeout(replay, 100, false);
     });
   }
 
@@ -321,7 +302,7 @@ async function D(id: number, { interval = 1, mpv = false } = {}) {
     if (process.platform === "win32") {
       cp.execSync("taskkill /pid " + child.pid + " /T /F");
     } else {
-      process.kill(-child.pid!, "SIGTERM");
+      child.kill();
     }
   };
 
@@ -335,7 +316,7 @@ function sigint(con: Connection, { json = false } = {}) {
   // note: both process.on(SIGINT) and repl.on(SIGINT) finally go here
   process.on("exit", () => {
     if (json) console.log(JSON.stringify({ cmd: "exit" }));
-    else console.log("[blivec] closing...");
+    else log.info("closing...");
     con.close();
   });
 }
@@ -351,35 +332,30 @@ if (arg1 === "get" || arg1 === "d" || arg1 === "dd") {
     } else {
       let interval = 1;
       let mpv = false;
+      let on_close = "default";
       for (const arg of rest) {
         if (arg.startsWith("--interval=")) {
           const value = Number.parseInt(arg.slice(11));
           if (Number.isFinite(value)) {
             interval = Math.max(0, value);
           } else {
-            console.error("Invalid interval, expect a number >= 0");
+            log.error("Invalid interval, expect a number >= 0");
+            process.exit(1);
+          }
+        }
+        if (arg.startsWith("--on-close=")) {
+          const value = arg.slice(11);
+          if (["default", "ask", "quit", "exit"].includes(value)) {
+            on_close = value;
+          } else {
+            log.error("Invalid on-close option, expect 'default' 'ask' 'quit'");
             process.exit(1);
           }
         }
         if (arg === "--mpv") mpv = true;
       }
-      const con = await D(id, { interval, mpv });
+      const con = await D(id, { interval, mpv, on_close });
       con && sigint(con);
     }
-  } else {
-    help();
-  }
-} else {
-  const id = Number.parseInt(arg1);
-  const json = arg2 === "--json";
-  if (Number.isSafeInteger(id) && id > 0) {
-    if (arg2 && !json) {
-      await send(id, arg2);
-    } else {
-      const con = listen(id, { json });
-      sigint(con, { json });
-    }
-  } else {
-    help();
   }
 }

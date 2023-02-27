@@ -1,3 +1,6 @@
 {
-  "quoteProps": "consistent"
+  "endOfLine": "auto",
+  "printWidth": 110,
+  "quoteProps": "consistent",
+  "trailingComma": "all"
 }
