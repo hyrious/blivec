@@ -267,6 +267,11 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default" }
     }
   }
 
+  function firstKey<T extends {}>(obj: T): keyof T {
+    for (const key in obj) return key;
+    return "" as any;
+  }
+
   let selected: string | undefined;
   async function replay(initial = true) {
     const info = await poll();
@@ -276,6 +281,11 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default" }
       selected = await ask(info);
     } else if (on_close === "default") {
       selected ||= await ask(info);
+      // It is possible that the selected quality is missing now
+      // in which case we fallback to the first available one
+      if (!(selected! in info.streams)) {
+        selected = firstKey(info.streams);
+      }
     } else if (on_close === "ask") {
       selected = await ask(info);
     } else if (on_close === "quit" || on_close === "exit") {
