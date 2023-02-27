@@ -299,7 +299,9 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default" }
     con.resume();
     child.on("exit", () => {
       con.pause();
-      log.info('to exit, press "Ctrl+C" in the console');
+      if (!(on_close === "quit" || on_close === "exit")) {
+        log.info('to exit, press "Ctrl+C" in the console');
+      }
       setTimeout(replay, 100, false);
     });
   }
@@ -309,10 +311,14 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default" }
   const quit = con.events.quit;
   con.events.quit = () => {
     quit && quit();
-    if (process.platform === "win32") {
-      cp.execSync("taskkill /pid " + child.pid + " /T /F");
-    } else {
-      child.kill();
+    try {
+      if (process.platform === "win32") {
+        cp.execSync("taskkill /pid " + child.pid + " /T /F", { stdio: "ignore" });
+      } else {
+        child.kill();
+      }
+    } catch {
+      // ignore killing error
     }
   };
 

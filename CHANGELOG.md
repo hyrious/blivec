@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.7
+
+- Fixed missing stream URL on network error.
+- Fixed taskkill not working well.
+
 ## 0.3.6
 
 - Fixed missing help and listen function in 0.3.5.
