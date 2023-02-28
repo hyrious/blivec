@@ -274,6 +274,10 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default" }
 
   let selected: string | undefined;
   async function replay(initial = true) {
+    if (!initial && (on_close === "quit" || on_close === "exit")) {
+      process.exit(0);
+    }
+
     const info = await poll();
     if (!info) process.exit(0);
 
