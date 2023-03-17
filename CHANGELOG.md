@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.8
+
+- Don't query info when `--on-close=quit`.
+- Forward ffplay/mpv arguments after `--`.
+
 ## 0.3.7
 
 - Fixed missing stream URL on network error.

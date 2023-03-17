@@ -12,11 +12,13 @@
     "src",
     "dist"
   ],
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "test": "node dist/bin.js",
     "clean": "rimraf dist",
-    "build": "esbuild src/index.ts src/bin.ts --target=node16.15 --outdir=dist"
+    "build": "npm run clean && npm run build:js && npm run build:types",
+    "build:js": "esbuild src/index.ts src/bin.ts --target=node16.15 --outdir=dist",
+    "build:types": "dts src/index.ts --o dist/index.d.ts"
   },
   "engines": {
     "node": ">=16.15"
@@ -30,6 +32,7 @@
   "author": "hyrious <hyrious@outlook.com>",
   "license": "MIT",
   "devDependencies": {
+    "@hyrious/dts": "^0.1.5",
     "@hyrious/rimraf": "^0.1.0",
     "@types/node": "^18.13.0",
     "esbuild": "^0.17.8"

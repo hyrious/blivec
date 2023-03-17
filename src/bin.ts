@@ -23,6 +23,7 @@ Usage: bl <room_id>                      # listen danmaku
                       default            # restart player
                       ask                # ask quality again
                       quit               # quit DD mode
+          -- [...player_args]            # pass args to ffplay or mpv
 `.trim();
 
 const has_colors = tty.WriteStream.prototype.hasColors();
@@ -186,7 +187,7 @@ async function get(id: number, { json = false } = {}) {
   }
 }
 
-async function D(id: number, { interval = 1, mpv = false, on_close = "default" } = {}) {
+async function D(id: number, { interval = 1, mpv = false, on_close = "default", args = <string[]>[] } = {}) {
   log.info(`DD ${id} ${interval > 0 ? `every ${interval} minutes` : "once"}`);
 
   let con!: Connection;
@@ -249,12 +250,13 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default" }
     return selected;
   }
 
-  function play(url: string, title: string) {
+  function play(url: string, title: string, extra: string[]) {
     if (mpv) {
       const args = ["--quiet"];
       args.push("--http-header-fields=" + headers.join(","));
       args.push("--title=" + title);
       args.push("--geometry=50%");
+      args.push(...extra);
       args.push(url);
       return cp.spawn("mpv", args, { stdio: "ignore", detached: true });
     } else {
@@ -262,6 +264,7 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default" }
       args.push("-headers", headers.map((e) => e + "\r\n").join(""));
       args.push("-window_title", title);
       args.push("-x", "720", "-y", "405");
+      args.push(...extra);
       args.push(url);
       return cp.spawn("ffplay", args, { stdio: "ignore" });
     }
@@ -298,7 +301,7 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default" }
     if (!selected) process.exit(0);
 
     log.info(`Now playing: [${selected}] ${info.title}`);
-    child = play(info.streams[selected].url, info.title);
+    child = play(info.streams[selected].url, info.title, args);
     con ||= listen(id);
     con.resume();
     child.on("exit", () => {
@@ -353,6 +356,7 @@ if (arg1 === "get" || arg1 === "d" || arg1 === "dd") {
       let interval = 1;
       let mpv = false;
       let on_close = "default";
+      let args: string[] | undefined;
       for (const arg of rest) {
         if (arg.startsWith("--interval=")) {
           const value = Number.parseInt(arg.slice(11));
@@ -362,8 +366,7 @@ if (arg1 === "get" || arg1 === "d" || arg1 === "dd") {
             log.error("Invalid interval, expect a number >= 0");
             process.exit(1);
           }
-        }
-        if (arg.startsWith("--on-close=")) {
+        } else if (arg.startsWith("--on-close=")) {
           const value = arg.slice(11);
           if (["default", "ask", "quit", "exit"].includes(value)) {
             on_close = value;
@@ -371,10 +374,15 @@ if (arg1 === "get" || arg1 === "d" || arg1 === "dd") {
             log.error("Invalid on-close option, expect 'default' 'ask' 'quit'");
             process.exit(1);
           }
+        } else if (arg === "--mpv") {
+          mpv = true;
+        } else if (arg === "--") {
+          args = [];
+        } else if (args) {
+          args.push(arg);
         }
-        if (arg === "--mpv") mpv = true;
       }
-      const con = await D(id, { interval, mpv, on_close });
+      const con = await D(id, { interval, mpv, on_close, args });
       con && sigint(con);
     }
   } else {
