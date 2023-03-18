@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.9
+
+- Allow using keyword instead of room id.
+
 ## 0.3.8
 
 - Don't query info when `--on-close=quit`.

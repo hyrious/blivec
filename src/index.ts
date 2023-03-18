@@ -12,8 +12,8 @@ const text = (resolve: (value: string) => void) => async (res: IncomingMessage) 
   resolve(Buffer.concat(chunks).toString("utf8"));
 };
 
-const get = (url: string) =>
-  new Promise<string>((resolve, reject) => https.get(url, text(resolve)).on("error", reject));
+const get = (url: string, options: https.RequestOptions = {}) =>
+  new Promise<string>((resolve, reject) => https.get(url, options, text(resolve)).on("error", reject));
 
 const inflateAsync = /* @__PURE__ */ promisify(inflate);
 const brotliDecompressAsync = /* @__PURE__ */ promisify(brotliDecompress);
@@ -401,6 +401,35 @@ export async function getRoomPlayInfo(id: number) {
   return { title, streams };
 }
 
+interface SerachResult {
+  result: {
+    roomid: number;
+    // player name
+    uname: string;
+    // may include html tags
+    title: string;
+    // start time
+    live_time: string;
+    // screen shot
+    cover: string;
+  }[];
+}
+
+export async function searchRoom(keyword: string) {
+  keyword = encodeURIComponent(keyword);
+  const api = "https://api.bilibili.com/x/web-interface/search/type";
+  const params = "&order=online&coverType=user_cover&page=1";
+  const info = await get(`${api}?search_type=live_room&keyword=${keyword}${params}`, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
+      "Referer": `https://search.bilibili.com/live?keyword=${keyword}${params}&search_type=live`,
+    },
+  });
+  const { code, message, data } = JSON.parse(info);
+  if (code != 0) throw new Error(message);
+  return (data as SerachResult).result;
+}
+
 export function testUrl(url: string, headers: string[] = []) {
   if (!url) return false;
   const options: https.RequestOptions = {};
@@ -413,4 +442,8 @@ export function testUrl(url: string, headers: string[] = []) {
       })
       .once("error", () => resolve(false));
   });
+}
+
+export function stripTags(html: string) {
+  return html.replace(/<[^>]+>/g, "");
 }

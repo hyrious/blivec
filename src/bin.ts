@@ -5,25 +5,32 @@ import tty from "tty";
 import { join } from "path";
 import cp from "child_process";
 import readline from "readline";
-import { Connection, Events, getRoomPlayInfo, sendDanmaku, testUrl } from "./index.js";
+import { Connection, Events, getRoomPlayInfo, searchRoom, sendDanmaku, stripTags, testUrl } from "./index.js";
 
 const help = `
-Usage: bl <room_id>                      # listen danmaku
-          --json                         # print all events in json
+Usage:
+  bl <room_id>                      # listen danmaku
+     --json                         # print all events in json
 
-       bl <room_id> <message>            # send danmaku
+  bl <room_id> <message>            # send danmaku
 
-       bl get <room_id>                  # get stream url
-          --json                         # print them in json
+  bl get <room_id>                  # get stream url
+     --json                         # print them in json
 
-       bl d <room_id> [--interval=1]     # dd mode
-          --interval=<minutes>           # set 0 to disable polling
-          --mpv                          # open in mpv instead
-          --on-close=<behavior>          # do something on window close
-                      default            # restart player
-                      ask                # ask quality again
-                      quit               # quit DD mode
-          -- [...player_args]            # pass args to ffplay or mpv
+  bl d <room_id> [--interval=1]     # dd mode
+     --interval=<minutes>           # set 0 to disable polling
+     --mpv                          # open in mpv instead
+     --on-close=<behavior>          # do something on window close
+                default             # restart player
+                ask                 # ask quality again
+                quit                # quit DD mode
+     -- [...player_args]            # pass args to ffplay or mpv
+
+Examples:
+  bl 123456
+  bl 123456 "Hello, world!"
+  bl get 123456
+  bl d 123456 --mpv --on-close=quit -- --volume=50
 `.trim();
 
 const has_colors = tty.WriteStream.prototype.hasColors();
@@ -345,60 +352,99 @@ function sigint(con: Connection, { json = false } = {}) {
 }
 
 const [arg1, arg2, ...rest] = process.argv.slice(2);
+if (arg1 === void 0 || arg1 === "--help" || arg2 === "--help" || rest.includes("--help")) {
+  console.log(help);
+  process.exit(0);
+}
+
+let action = "listen";
+let id_or_keyword: string;
+let id: number;
 
 if (arg1 === "get" || arg1 === "d" || arg1 === "dd") {
-  const id = Number.parseInt(arg2);
-  if (Number.isSafeInteger(id) && id > 0) {
-    if (arg1 === "get") {
-      const json = rest.includes("--json");
-      await get(id, { json });
-    } else {
-      let interval = 1;
-      let mpv = false;
-      let on_close = "default";
-      let args: string[] | undefined;
-      for (const arg of rest) {
-        if (arg.startsWith("--interval=")) {
-          const value = Number.parseInt(arg.slice(11));
-          if (Number.isFinite(value)) {
-            interval = Math.max(0, value);
-          } else {
-            log.error("Invalid interval, expect a number >= 0");
-            process.exit(1);
-          }
-        } else if (arg.startsWith("--on-close=")) {
-          const value = arg.slice(11);
-          if (["default", "ask", "quit", "exit"].includes(value)) {
-            on_close = value;
-          } else {
-            log.error("Invalid on-close option, expect 'default' 'ask' 'quit'");
-            process.exit(1);
-          }
-        } else if (arg === "--mpv") {
-          mpv = true;
-        } else if (arg === "--") {
-          args = [];
-        } else if (args) {
-          args.push(arg);
-        }
-      }
-      const con = await D(id, { interval, mpv, on_close, args });
-      con && sigint(con);
-    }
-  } else {
-    console.log(help);
-  }
+  action = arg1;
+  id_or_keyword = arg2;
 } else {
-  const id = Number.parseInt(arg1);
-  const json = arg2 === "--json";
-  if (Number.isSafeInteger(id) && id > 0) {
-    if (arg2 && !json) {
-      await send(id, arg2);
-    } else {
-      const con = listen(id, { json });
-      sigint(con, { json });
-    }
+  id_or_keyword = arg1;
+}
+
+// resolve keyword to room id
+let maybe_id = Number.parseInt(id_or_keyword);
+if (Number.isSafeInteger(maybe_id) && maybe_id > 0) {
+  id = maybe_id;
+} else {
+  let rooms = await searchRoom(id_or_keyword);
+  if (rooms.length === 0) {
+    log.error("Not found room with keyword " + JSON.stringify(id_or_keyword));
+    process.exit(1);
+  } else if (rooms.length === 1) {
+    id = rooms[0].roomid;
   } else {
-    console.log(help);
+    log.info("Found multiple rooms:");
+    const choices: Array<number | string> = [];
+    for (let i = 0; i < rooms.length; i++) {
+      const room = rooms[i];
+      const title = stripTags(room.title);
+      log.info(`  ${String(i + 1).padStart(2)}: ${room.uname} - ${title}`);
+      choices.push(i + 1);
+    }
+    choices.push("Y=1", "n");
+    const repl = setup_repl();
+    const answer = await new Promise<string>((resolve) => {
+      repl.question(`Choose a room, or give up: (${choices.join("/")}) `, (a) => resolve(a || "Y"));
+    });
+    let selected = rooms[0];
+    let i = Number.parseInt(answer);
+    if (Number.isSafeInteger(i) && 1 <= i && i <= rooms.length) {
+      selected = rooms[i - 1];
+    } else if (answer[0].toLowerCase() === "n") {
+      process.exit(0);
+    }
+    id = selected.roomid;
   }
+}
+
+if (action === "listen") {
+  const json = arg2 === "--json";
+  if (arg2 && !json) {
+    await send(id, arg2);
+  } else {
+    const con = listen(id, { json });
+    sigint(con, { json });
+  }
+} else if (action === "get") {
+  const json = rest.includes("--json");
+  await get(id, { json });
+} else {
+  let interval = 1;
+  let mpv = false;
+  let on_close = "default";
+  let args: string[] | undefined;
+  for (const arg of rest) {
+    if (arg.startsWith("--interval=")) {
+      const value = Number.parseInt(arg.slice(11));
+      if (Number.isFinite(value)) {
+        interval = Math.max(0, value);
+      } else {
+        log.error("Invalid interval, expect a number >= 0");
+        process.exit(1);
+      }
+    } else if (arg.startsWith("--on-close=")) {
+      const value = arg.slice(11);
+      if (["default", "ask", "quit", "exit"].includes(value)) {
+        on_close = value;
+      } else {
+        log.error("Invalid on-close option, expect 'default' 'ask' 'quit'");
+        process.exit(1);
+      }
+    } else if (arg === "--mpv") {
+      mpv = true;
+    } else if (arg === "--") {
+      args = [];
+    } else if (args) {
+      args.push(arg);
+    }
+  }
+  const con = await D(id, { interval, mpv, on_close, args });
+  con && sigint(con);
 }
