@@ -32,9 +32,9 @@
   "author": "hyrious <hyrious@outlook.com>",
   "license": "MIT",
   "devDependencies": {
-    "@hyrious/dts": "^0.1.5",
+    "@hyrious/dts": "^0.1.6",
     "@hyrious/rimraf": "^0.1.0",
-    "@types/node": "^18.13.0",
-    "esbuild": "^0.17.8"
+    "@types/node": "^18.15.5",
+    "esbuild": "^0.17.12"
   }
 }

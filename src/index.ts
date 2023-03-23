@@ -61,10 +61,12 @@ const TYPE_OP_MAP: Record<string, number> = {
   heartbeat: 2,
   join: 7,
 };
+const HEARTBEAT_INTERVAL = 10e3;
+const CONNECT_TIMEOUT = 15e3;
 
 export type ConnectionInfo = RoomInfo & DanmuInfo;
 export interface Events {
-  init?: (info: ConnectionInfo) => void;
+  init?: (info: ConnectionInfo, host_index: number) => void;
   message?: (data: any) => void;
   error?: (err: Error) => void;
   quit?: () => void;
@@ -106,7 +108,7 @@ export class Connection {
     const { room_id, title, ...rest } = await getRoomInfo(this.roomId);
     const { host_list, token } = await getDanmuInfo(room_id);
     this.info = { room_id, title, token, host_list, ...rest };
-    (this.events.init || noop)(this.info);
+    (this.events.init || noop)(this.info, this._connect_index);
 
     const { host, port } = host_list[this._connect_index];
     this._connect_index = (this._connect_index + 1) % host_list.length;
@@ -124,7 +126,7 @@ export class Connection {
       return;
     }
     this.socket = socket;
-    this.timer_reconnect = setTimeout(this.reconnect.bind(this), 45e3);
+    this.timer_reconnect = setTimeout(this.reconnect.bind(this), CONNECT_TIMEOUT);
 
     socket.on("ready", this._on_ready.bind(this));
     socket.on("close", this._on_close.bind(this));
@@ -191,7 +193,7 @@ export class Connection {
         this.heartbeat();
       } else if (type === "heartbeat") {
         clearTimeout(this.timer_heartbeat);
-        this.timer_heartbeat = setTimeout(this.heartbeat.bind(this), 30e3);
+        this.timer_heartbeat = setTimeout(this.heartbeat.bind(this), HEARTBEAT_INTERVAL);
       } else if (type === "message") {
         if (this._temp) {
           this._temp.push(data);

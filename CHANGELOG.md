@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.10
+
+- Turn down the connection timeout and heartbeat interval.
+- Added debug logging.
+
 ## 0.3.9
 
 - Allow using keyword instead of room id.

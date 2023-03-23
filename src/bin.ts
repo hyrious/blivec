@@ -44,9 +44,12 @@ const cyan = format(36, 39);
 const black = format(30, 39);
 const bgRed = format(41, 49);
 const bgCyan = format(46, 49);
+const gray = format(90, 39);
+const bgGray = format(100, 49);
 const log = {
   error: (msg: string) => console.error(`${bgRed(black(" ERROR "))} ${red(msg)}`),
   info: (msg: string) => console.error(`${bgCyan(black(" BLIVC "))} ${cyan(msg)}`),
+  debug: (msg: string) => console.error(`${bgGray(black(" DEBUG "))} ${gray(msg)}`),
   catch_error: (error: Error) => log.error(error.message),
 };
 
@@ -86,7 +89,7 @@ function listen(id: number, { json = false } = {}) {
         error: log.catch_error,
       }
     : {
-        init({ title, live_status, live_start_time }) {
+        init({ title, live_status, live_start_time, host_list }, index) {
           if (count === 0) {
             if (live_status === 1) {
               const time = new Date(live_start_time * 1000).toLocaleString();
@@ -110,6 +113,8 @@ function listen(id: number, { json = false } = {}) {
             log.info(`reconnected (x${count})`);
           }
           count++;
+          const { host, port } = host_list[index];
+          log.debug(`connecting tcp://${host}:${port}`);
         },
         message(a) {
           if (typeof a === "object" && a !== null && a.cmd === "DANMU_MSG") {
