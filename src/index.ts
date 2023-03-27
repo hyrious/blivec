@@ -300,6 +300,45 @@ export function sendDanmaku(id: number, message: string, env: Env) {
   return post("https://api.live.bilibili.com/msg/send", body, { headers });
 }
 
+interface FeedListResult {
+  results: number;
+  page: number;
+  pagesize: number;
+  list: Array<{
+    cover: string;
+    face: string;
+    uname: string;
+    title: string;
+    roomid: string;
+    pic: string;
+    online: number;
+    link: string;
+    uid: number;
+    watched_show: {
+      switch: boolean;
+      num: number;
+      text_small: string;
+      text_large: string;
+      icon: string;
+      icon_location: number;
+      icon_web: string;
+    };
+  }>;
+}
+
+export async function getFeedList(env: Env) {
+  const { SESSDATA, bili_jct } = env;
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
+    "Referer": "https://www.bilibili.com/",
+    "Cookie": `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}`,
+  };
+  const res = await get(`https://api.live.bilibili.com/relation/v1/feed/feed_list`, { headers });
+  const { code, message, data } = JSON.parse(res);
+  if (code != 0) throw new Error(message);
+  return data as FeedListResult;
+}
+
 interface PlayUrlInfo {
   playurl_info: {
     playurl: {

@@ -5,16 +5,28 @@ import tty from "tty";
 import { join } from "path";
 import cp from "child_process";
 import readline from "readline";
-import { Connection, Events, getRoomPlayInfo, searchRoom, sendDanmaku, stripTags, testUrl } from "./index.js";
+import {
+  Connection,
+  Events,
+  getFeedList,
+  getRoomPlayInfo,
+  searchRoom,
+  sendDanmaku,
+  stripTags,
+  testUrl,
+} from "./index.js";
 
 const help = `
 Usage:
   bl <room_id>                      # listen danmaku
      --json                         # print all events in json
 
-  bl <room_id> <message>            # send danmaku
+  bl <room_id> <message>            # send danmaku (requires cookie)
 
   bl get <room_id>                  # get stream url
+     --json                         # print them in json
+  
+  bl feed                           # get feed list (requires cookie)
      --json                         # print them in json
 
   bl d <room_id> [--interval=1]     # dd mode
@@ -132,25 +144,25 @@ function listen(id: number, { json = false } = {}) {
   return new Connection(id, events);
 }
 
-async function send(id: number, message: string) {
-  function example() {
-    console.error("Example content:");
-    console.error("");
-    console.error("SESSDATA=...");
-    console.error("bili_jct=...");
-    console.error();
-  }
+function example() {
+  console.error("Example content:");
+  console.error("");
+  console.error("SESSDATA=...");
+  console.error("bili_jct=...");
+  console.error();
+}
 
-  function cookiePath(path?: string | undefined) {
-    if (fs.existsSync("cookie.txt")) return "cookie.txt";
-    path = join(os.homedir(), "cookie.txt");
-    if (fs.existsSync(path)) return path;
-    path = join(os.homedir(), ".config", "cookie.txt");
-    if (fs.existsSync(path)) return path;
-    path = join(os.homedir(), ".config", "blivec", "cookie.txt");
-    if (fs.existsSync(path)) return path;
-  }
+function cookiePath(path?: string | undefined) {
+  if (fs.existsSync("cookie.txt")) return "cookie.txt";
+  path = join(os.homedir(), "cookie.txt");
+  if (fs.existsSync(path)) return path;
+  path = join(os.homedir(), ".config", "cookie.txt");
+  if (fs.existsSync(path)) return path;
+  path = join(os.homedir(), ".config", "blivec", "cookie.txt");
+  if (fs.existsSync(path)) return path;
+}
 
+function get_cookie() {
   const path = cookiePath();
   if (!path) {
     log.error('Please create a file "cookie.txt" in current directory.');
@@ -170,10 +182,40 @@ async function send(id: number, message: string) {
   }
 
   if (env.SESSDATA && env.bili_jct) {
-    await sendDanmaku(id, message, env).catch(log.catch_error);
+    return env;
   } else {
     log.error("Invalid cookie.txt");
     example();
+    process.exit(1);
+  }
+}
+
+async function send(id: number, message: string) {
+  const env = get_cookie();
+  await sendDanmaku(id, message, env).catch(log.catch_error);
+}
+
+async function feed({ json = false } = {}) {
+  const env = get_cookie();
+  let res;
+
+  try {
+    res = await getFeedList(env);
+  } catch (err) {
+    log.catch_error(err);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (json) {
+    console.log(JSON.stringify(res.list, null, 2));
+    return;
+  }
+
+  log.info(`Found ${res.results} rooms:`);
+  for (let i = 0; i < res.list.length; i++) {
+    const { roomid, uname, title } = res.list[i];
+    log.info(`  [${String(i + 1).padStart(2)}] ${String(roomid).padStart(8)}: ${uname} - ${title}`);
   }
 }
 
@@ -366,11 +408,17 @@ let action = "listen";
 let id_or_keyword: string;
 let id: number;
 
-if (arg1 === "get" || arg1 === "d" || arg1 === "dd") {
+if (arg1 === "get" || arg1 === "d" || arg1 === "dd" || arg1 === "feed") {
   action = arg1;
   id_or_keyword = arg2;
 } else {
   id_or_keyword = arg1;
+}
+
+// the feed command do not need room id, so handle it here
+if (action === "feed") {
+  await feed({ json: arg2 === "--json" });
+  process.exit();
 }
 
 // resolve keyword to room id
