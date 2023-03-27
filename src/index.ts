@@ -1,4 +1,5 @@
 import https from "https";
+import crypto from "crypto";
 import { IncomingMessage, RequestOptions } from "http";
 import { createConnection, Socket } from "net";
 import { promisify } from "util";
@@ -425,6 +426,7 @@ export async function searchRoom(keyword: string) {
     headers: {
       "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
       "Referer": `https://search.bilibili.com/live?keyword=${keyword}${params}&search_type=live`,
+      "Cookie": `buvid3=${crypto.randomUUID()}infoc;`,
     },
   });
   const { code, message, data } = JSON.parse(info);
