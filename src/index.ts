@@ -272,6 +272,8 @@ export class Connection {
 
   heartbeat() {
     this.send(this._encode("heartbeat"));
+    clearTimeout(this.timer_reconnect);
+    this.timer_reconnect = setTimeout(this._on_close.bind(this), CONNECT_TIMEOUT);
   }
 }
 
