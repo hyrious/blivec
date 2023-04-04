@@ -121,6 +121,12 @@ export class Connection {
     clearTimeout(this.timer_reconnect);
     this.buffer = EMPTY_BUFFER;
 
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.destroy();
+      this.socket = null;
+    }
+
     const socket = await this.connect().catch(() => null);
     if (socket === null) {
       this._on_close();
