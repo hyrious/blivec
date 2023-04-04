@@ -413,6 +413,11 @@ if (arg1 === "get" || arg1 === "d" || arg1 === "dd" || arg1 === "feed") {
   id_or_keyword = arg1;
 }
 
+if (arg1 !== "feed" && !id_or_keyword) {
+  console.log(help);
+  process.exit(0);
+}
+
 // the feed command do not need room id, so handle it here
 if (action === "feed") {
   await feed({ json: arg2 === "--json" });
