@@ -137,8 +137,6 @@ function listen(id: number, { json = false } = {}) {
         },
         error: log.catch_error,
         quit: quit_repl,
-        pause: () => repl && repl.pause(),
-        resume: () => repl && repl.resume(),
       };
 
   return new Connection(id, events);

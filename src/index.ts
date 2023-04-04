@@ -71,8 +71,6 @@ export interface Events {
   message?: (data: any) => void;
   error?: (err: Error) => void;
   quit?: () => void;
-  pause?: () => void;
-  resume?: () => void;
 }
 
 export class Connection {
@@ -90,10 +88,8 @@ export class Connection {
   _temp: any[] | null = null;
   pause() {
     this._temp || (this._temp = []);
-    (this.events.pause || noop)();
   }
   resume() {
-    (this.events.resume || noop)();
     const temp = this._temp;
     if (temp) {
       this._temp = null;
