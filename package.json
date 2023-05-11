@@ -18,7 +18,7 @@
     "clean": "rimraf dist",
     "build": "npm run clean && npm run build:js && npm run build:types",
     "build:js": "esbuild src/index.ts src/bin.ts --target=node16.15 --outdir=dist",
-    "build:types": "dts src/index.ts --o dist/index.d.ts"
+    "build:types": "dts src/index.ts -o dist/index.d.ts"
   },
   "engines": {
     "node": ">=16.15"

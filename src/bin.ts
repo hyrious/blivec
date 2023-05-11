@@ -281,7 +281,7 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default", 
       log.info(`  ${String(i + 1).padStart(width)}: ${name}`);
       choices.push(i + 1);
     }
-    choices.push("Y=1", "max", "n");
+    choices.push("Y=1", "max", "n", "retry");
     const repl = setup_repl();
     const answer = await new Promise<string>((resolve) => {
       repl.question(`Choose a stream, or give up: (${choices.join("/")}) `, (a) => resolve(a || "Y"));
@@ -297,6 +297,8 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default", 
         case "m":
           selected = names.reduce((a, b) => (streams[a].qn > streams[b].qn ? a : b));
           break;
+        case "r":
+          return "retry";
       }
     }
     return selected;
@@ -349,6 +351,10 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default", 
       selected = await ask(info);
     } else if (on_close === "quit" || on_close === "exit") {
       selected = void 0;
+    }
+    if (selected === "retry") {
+      await replay(initial);
+      return;
     }
     if (!selected) process.exit(0);
 
