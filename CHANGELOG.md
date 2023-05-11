@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.14
+
+- Added `retry` option in DD mode.
+- Do not pause danmaku when player closed.
+
 ## 0.3.10
 
 - Turn down the connection timeout and heartbeat interval.
