@@ -361,9 +361,7 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default", 
     log.info(`Now playing: [${selected}] ${info.title}`);
     child = play(info.streams[selected].url, info.title, args);
     con ||= listen(id);
-    con.resume();
     child.on("exit", () => {
-      con.pause();
       if (!(on_close === "quit" || on_close === "exit")) {
         log.info('to exit, press "Ctrl+C" in the console');
       }

@@ -85,20 +85,6 @@ export class Connection {
     this.reconnect();
   }
 
-  _temp: any[] | null = null;
-  pause() {
-    this._temp || (this._temp = []);
-  }
-  resume() {
-    const temp = this._temp;
-    if (temp) {
-      this._temp = null;
-      for (const data of temp) {
-        (this.events.message || noop)(data);
-      }
-    }
-  }
-
   _closed = false;
   _connect_index = 0;
   async connect() {
@@ -198,11 +184,7 @@ export class Connection {
         clearTimeout(this.timer_heartbeat);
         this.timer_heartbeat = setTimeout(this.heartbeat.bind(this), HEARTBEAT_INTERVAL);
       } else if (type === "message") {
-        if (this._temp) {
-          this._temp.push(data);
-        } else {
-          (this.events.message || noop)(data);
-        }
+        (this.events.message || noop)(data);
       }
     }
   }
