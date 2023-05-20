@@ -208,10 +208,10 @@ async function send(id: number, message: string) {
 
 async function feed({ json = false } = {}) {
   const env = get_cookie();
-  let res;
+  let list;
 
   try {
-    res = await getFeedList(env);
+    list = await getFeedList(env);
   } catch (err) {
     log.catch_error(err);
     process.exitCode = 1;
@@ -219,13 +219,13 @@ async function feed({ json = false } = {}) {
   }
 
   if (json) {
-    console.log(JSON.stringify(res.list, null, 2));
+    console.log(JSON.stringify(list, null, 2));
     return;
   }
 
-  log.info(`Found ${res.results} rooms:`);
-  for (let i = 0; i < res.list.length; i++) {
-    const { roomid, uname, title } = res.list[i];
+  log.info(`Found ${list.length} rooms:`);
+  for (let i = 0; i < list.length; i++) {
+    const { roomid, uname, title } = list[i];
     log.info(`  [${String(i + 1).padStart(2)}] ${String(roomid).padStart(8)}: ${uname} - ${title}`);
   }
 }
@@ -252,7 +252,7 @@ async function get(id: number, { json = false } = {}) {
   }
 }
 
-function format_interval(minutes) {
+function format_interval(minutes: number) {
   if (minutes === 1) return "1 minute";
   if (minutes < 1) {
     const seconds = Math.round(minutes * 60);
@@ -260,6 +260,18 @@ function format_interval(minutes) {
     if (seconds > 1) return seconds + " seconds";
   }
   return minutes + " minutes";
+}
+
+function format_choices(choices: Array<number | string>): string {
+  // choices must be [1,2,3,...,'other','options']
+  // truncate the first continuous numbers to range format
+  let n = 0;
+  while (choices[n] === n + 1) n++;
+  if (n <= 5) {
+    return choices.join("/");
+  } else {
+    return `1/2/../${n - 1}/${n}/` + choices.slice(n).join("/");
+  }
 }
 
 async function D(id: number, { interval = 1, mpv = false, on_close = "default", args = <string[]>[] } = {}) {
@@ -307,7 +319,7 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default", 
     choices.push("Y=1", "max", "n", "retry");
     const repl = setup_repl();
     const answer = await new Promise<string>((resolve) => {
-      repl.question(`Choose a stream, or give up: (${choices.join("/")}) `, (a) => resolve(a || "Y"));
+      repl.question(`Choose a stream, or give up: (${format_choices(choices)}) `, (a) => resolve(a || "Y"));
     });
     let selected = names[0];
     let i = Number.parseInt(answer);
@@ -488,7 +500,7 @@ if (Number.isSafeInteger(maybe_id) && maybe_id > 0) {
   } else if (rooms.length === 1) {
     id = rooms[0].roomid;
   } else {
-    log.info("Found multiple rooms:");
+    log.info(`Found ${rooms.length} rooms:`);
     const choices: Array<number | string> = [];
     for (let i = 0; i < rooms.length; i++) {
       const room = rooms[i];
@@ -499,7 +511,7 @@ if (Number.isSafeInteger(maybe_id) && maybe_id > 0) {
     choices.push("Y=1", "n");
     const repl = setup_repl();
     const answer = await new Promise<string>((resolve) => {
-      repl.question(`Choose a room, or give up: (${choices.join("/")}) `, (a) => resolve(a || "Y"));
+      repl.question(`Choose a room, or give up: (${format_choices(choices)}) `, (a) => resolve(a || "Y"));
     });
     let selected = rooms[0];
     let i = Number.parseInt(answer);

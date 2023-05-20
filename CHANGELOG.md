@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- List all rooms in feed (was 20 at max before).
+- Make prompt shorter.
+
 ## 0.3.15
 
 - Added global config support, you can have a `~/.config/blivec.json` with config:
