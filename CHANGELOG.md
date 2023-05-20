@@ -4,6 +4,7 @@
 
 - List all rooms in feed (was 20 at max before).
 - Make prompt shorter.
+- Added alias `--default` = `--on-close=default`.
 
 ## 0.3.15
 

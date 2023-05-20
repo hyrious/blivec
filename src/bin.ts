@@ -33,7 +33,7 @@ Usage:
      --interval=<minutes>           # set 0 to disable polling
      --mpv                          # open in mpv instead
      --on-close=<behavior>          # do something on window close
-                default             # restart player
+                default             # restart player    (alias: --default)
                 ask                 # ask quality again (alias: --ask)
                 quit                # quit DD mode      (alias: --quit)
      -- [...player_args]            # pass args to ffplay or mpv
@@ -561,6 +561,8 @@ if (action === "listen") {
       }
     } else if (arg === "--mpv") {
       mpv = true;
+    } else if (arg === "--default") {
+      on_close = "default";
     } else if (arg === "--ask") {
       on_close = "ask";
     } else if (arg === "--quit" || arg === "--exit") {
