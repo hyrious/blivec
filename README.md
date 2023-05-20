@@ -59,6 +59,16 @@ Use `ffplay` or `mpv` (if `--mpv` is specified) to play the stream. If it is not
   - `default`: Restart the player. This is super useful when there is network errors and you don't have to touch the keyboard or mouse to keep watching the stream.
   - `quit`: Quit the whole program.
   - `ask`: Search stream URLs and ask you for a new one to play or just quit. This is useful when you want to switch the stream quality quickly.
+- `--quit`: Same as `--on-close=quit`.
+- `--ask`: Same as `--on-close=ask`.
+
+**Note**: You can have a `~/.config/blivec.json` to config default arguments:
+
+```json
+{
+  "dd": ["--mpv", "--quit", "--", "--volume=50"]
+}
+```
 
 ## Develop
 

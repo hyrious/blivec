@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.15
+
+- Added global config support, you can have a `~/.config/blivec.json` with config:
+
+  ```json
+  {
+    "dd": ["--mpv", "--quit", "--", "--volume=50"]
+  }
+  ```
+
+  ..to set default arguments passed to the `dd` command.
+
+- Added alias `--quit` = `--on-close=quit`, `--ask` = `--on-close=ask`.
+
+- `--interval` can use float number now, like `0.1`.
+
 ## 0.3.14
 
 - Added `retry` option in DD mode.

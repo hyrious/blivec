@@ -34,8 +34,8 @@ Usage:
      --mpv                          # open in mpv instead
      --on-close=<behavior>          # do something on window close
                 default             # restart player
-                ask                 # ask quality again
-                quit                # quit DD mode
+                ask                 # ask quality again (alias: --ask)
+                quit                # quit DD mode      (alias: --quit)
      -- [...player_args]            # pass args to ffplay or mpv
 
 Examples:
@@ -142,6 +142,19 @@ function listen(id: number, { json = false } = {}) {
   return new Connection(id, events);
 }
 
+function configPath(path?: string) {
+  if (fs.existsSync("blivec.json")) return "blivec.json";
+  path = join(os.homedir(), "blivec.json");
+  if (fs.existsSync(path)) return path;
+  path = join(os.homedir(), ".config", "blivec.json");
+  if (fs.existsSync(path)) return path;
+}
+
+function read_config() {
+  const path = configPath();
+  return path ? JSON.parse(fs.readFileSync(path, "utf-8")) : {};
+}
+
 function example() {
   console.error("Example content:");
   console.error("");
@@ -150,7 +163,7 @@ function example() {
   console.error();
 }
 
-function cookiePath(path?: string | undefined) {
+function cookiePath(path?: string) {
   if (fs.existsSync("cookie.txt")) return "cookie.txt";
   path = join(os.homedir(), "cookie.txt");
   if (fs.existsSync(path)) return path;
@@ -239,8 +252,18 @@ async function get(id: number, { json = false } = {}) {
   }
 }
 
+function format_interval(minutes) {
+  if (minutes === 1) return "1 minute";
+  if (minutes < 1) {
+    const seconds = Math.round(minutes * 60);
+    if (seconds === 1) return "1 second";
+    if (seconds > 1) return seconds + " seconds";
+  }
+  return minutes + " minutes";
+}
+
 async function D(id: number, { interval = 1, mpv = false, on_close = "default", args = <string[]>[] } = {}) {
-  log.info(`DD ${id} ${interval > 0 ? `every ${interval} minutes` : "once"}`);
+  log.info(`DD ${id} ${interval > 0 ? `every ${format_interval(interval)}` : "once"}`);
 
   let con!: Connection;
   let child!: cp.ChildProcess;
@@ -388,6 +411,31 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default", 
   return con;
 }
 
+function modify_dd_args(cmd: string[], config?: string[]) {
+  if (!config) return;
+  // config = [...x, '--', ...y]
+  // cmd    = [...a, '--', ...b]
+  // return = [...x, ...a, '--', ...y, ...b]
+  let i = config.indexOf("--");
+  if (i === -1) {
+    cmd.unshift(...config);
+    return;
+  }
+  let x = config.slice(0, i);
+  let y = config.slice(i + 1);
+
+  let j = cmd.indexOf("--");
+  if (j === -1) {
+    cmd.unshift(...x);
+    cmd.push("--", ...y);
+    return;
+  }
+
+  let a = cmd.slice(0, j);
+  let b = cmd.slice(j + 1);
+  cmd.splice(0, cmd.length, ...x, ...a, "--", ...y, ...b);
+}
+
 function sigint(con: Connection, { json = false } = {}) {
   process.on("SIGINT", () => {
     process.exit(0);
@@ -476,13 +524,15 @@ if (action === "listen") {
   const json = rest.includes("--json");
   await get(id, { json });
 } else {
+  const config = read_config();
+  modify_dd_args(rest, config.d || config.dd);
   let interval = 1;
   let mpv = false;
   let on_close = "default";
   let args: string[] | undefined;
   for (const arg of rest) {
     if (arg.startsWith("--interval=")) {
-      const value = Number.parseInt(arg.slice(11));
+      const value = +arg.slice(11);
       if (Number.isFinite(value)) {
         interval = Math.max(0, value);
       } else {
@@ -499,6 +549,10 @@ if (action === "listen") {
       }
     } else if (arg === "--mpv") {
       mpv = true;
+    } else if (arg === "--ask") {
+      on_close = "ask";
+    } else if (arg === "--quit" || arg === "--exit") {
+      on_close = "quit";
     } else if (arg === "--") {
       args = [];
     } else if (args) {
