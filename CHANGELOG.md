@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.3.16
 
 - List all rooms in feed (was 20 at max before).
 - Make prompt shorter.
 - Added alias `--default` = `--on-close=default`.
+- Added command `rs` to manually restart danmaku quickly.
 
 ## 0.3.15
 

@@ -61,7 +61,7 @@ const bgGray = format(100, 49);
 const log = {
   error: (msg: string) => console.error(`${bgRed(black(" ERROR "))} ${red(msg)}`),
   info: (msg: string) => console.error(`${bgCyan(black(" BLIVC "))} ${cyan(msg)}`),
-  debug: (msg: string) => console.error(`${bgGray(black(" DEBUG "))} ${gray(msg)}`),
+  debug: (msg: string) => console.error(`${bgGray(" DEBUG ")} ${gray(msg)}`),
   catch_error: (error: Error) => log.error(error.message),
 };
 
@@ -93,6 +93,7 @@ function quit_repl() {
 
 function listen(id: number, { json = false } = {}) {
   let count = 0;
+  let con: Connection;
 
   const events: Events = json
     ? {
@@ -112,7 +113,9 @@ function listen(id: number, { json = false } = {}) {
             const repl = setup_repl();
             repl.on("line", (line) => {
               line = line.trim();
-              if (line.startsWith("> ") && line.length > 2) {
+              if (line === "rs") {
+                con.reconnect();
+              } else if (line.startsWith("> ") && line.length > 2) {
                 readline.moveCursor(process.stdout, 0, -1); // move up
                 readline.clearLine(process.stdout, 0); // clear the user input
                 line = line.slice(2);
@@ -139,7 +142,9 @@ function listen(id: number, { json = false } = {}) {
         quit: quit_repl,
       };
 
-  return new Connection(id, events);
+  con = new Connection(id, events);
+
+  return con;
 }
 
 function configPath(path?: string) {
