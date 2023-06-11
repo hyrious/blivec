@@ -25,7 +25,7 @@ Usage:
 
   bl get <room_id>                  # get stream url
      --json                         # print them in json
-  
+
   bl feed                           # get feed list (requires cookie)
      --json                         # print them in json
 
@@ -37,6 +37,9 @@ Usage:
                 ask                 # ask quality again (alias: --ask)
                 quit                # quit DD mode      (alias: --quit)
      -- [...player_args]            # pass args to ffplay or mpv
+
+Global flags:
+     -y, --yes                      # answer 'y' to all prompts (select quality, etc.)
 
 Examples:
   bl 123456
@@ -279,7 +282,10 @@ function format_choices(choices: Array<number | string>): string {
   }
 }
 
-async function D(id: number, { interval = 1, mpv = false, on_close = "default", args = <string[]>[] } = {}) {
+async function D(
+  id: number,
+  { interval = 1, mpv = false, on_close = "default", yes = false, args = <string[]>[] } = {},
+) {
   log.info(`DD ${id} ${interval > 0 ? `every ${format_interval(interval)}` : "once"}`);
 
   let con!: Connection;
@@ -323,9 +329,14 @@ async function D(id: number, { interval = 1, mpv = false, on_close = "default", 
     }
     choices.push("Y=1", "max", "n", "retry");
     const repl = setup_repl();
-    const answer = await new Promise<string>((resolve) => {
-      repl.question(`Choose a stream, or give up: (${format_choices(choices)}) `, (a) => resolve(a || "Y"));
-    });
+    let answer = "Y";
+    if (yes) {
+      log.info(`Chooses [${names[0]}] because of --yes`);
+    } else {
+      answer = await new Promise<string>((resolve) => {
+        repl.question(`Choose a stream, or give up: (${format_choices(choices)}) `, (a) => resolve(a || "Y"));
+      });
+    }
     let selected = names[0];
     let i = Number.parseInt(answer);
     if (Number.isSafeInteger(i) && 1 <= i && i <= names.length) {
@@ -465,11 +476,29 @@ function sigint(con: Connection, { json = false } = {}) {
   });
 }
 
+function check_yes(args: string[]): boolean {
+  let index = -1;
+  for (let i = 0; i < args.length; ++i) {
+    if (args[i] === "-y" || args[i] === "--yes") {
+      index = i;
+      break;
+    }
+    if (args[i] === "--") break;
+  }
+  if (index >= 0) {
+    args.splice(index, 1);
+    return true;
+  }
+  return false;
+}
+
 const [arg1, arg2, ...rest] = process.argv.slice(2);
 if (arg1 === void 0 || arg1 === "--help" || arg2 === "--help" || rest.includes("--help")) {
   console.log(help);
   process.exit(0);
 }
+
+const yes = check_yes(rest);
 
 let action = "listen";
 let id_or_keyword: string;
@@ -502,7 +531,7 @@ if (Number.isSafeInteger(maybe_id) && maybe_id > 0) {
   if (rooms.length === 0) {
     log.error("Not found room with keyword " + JSON.stringify(id_or_keyword));
     process.exit(1);
-  } else if (rooms.length === 1) {
+  } else if (rooms.length === 1 || yes) {
     id = rooms[0].roomid;
   } else {
     log.info(`Found ${rooms.length} rooms:`);
@@ -578,6 +607,6 @@ if (action === "listen") {
       args.push(arg);
     }
   }
-  const con = await D(id, { interval, mpv, on_close, args });
+  const con = await D(id, { interval, mpv, on_close, args, yes });
   con && sigint(con);
 }

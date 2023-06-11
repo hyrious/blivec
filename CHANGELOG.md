@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added `--yes` to answer yes to all prompts.
+
 ## 0.3.16
 
 - List all rooms in feed (was 20 at max before).
