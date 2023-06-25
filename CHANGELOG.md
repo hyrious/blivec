@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.3.17
 
 - Added `--yes` to answer yes to all prompts.
+- Added time (only hours and minutes) field in danmaku output.
 
 ## 0.3.16
 

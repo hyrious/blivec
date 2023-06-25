@@ -136,9 +136,10 @@ function listen(id: number, { json = false } = {}) {
         },
         message(a) {
           if (typeof a === "object" && a !== null && a.cmd === "DANMU_MSG") {
+            const time = new Date(a.info[0][4]).toLocaleString("zh-CN").slice(10, 15);
             const message = a.info[1];
             const user = a.info[2][1];
-            console.log(`[${user}]`, message);
+            console.log(`[${time}] [${user}]`, message);
           }
         },
         error: log.catch_error,
