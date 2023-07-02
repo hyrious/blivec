@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.18
+
+- Fix time slice range in previous version.
+
 ## 0.3.17
 
 - Added `--yes` to answer yes to all prompts.
