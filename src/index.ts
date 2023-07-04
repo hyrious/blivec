@@ -39,6 +39,10 @@ export async function getDanmuInfo(id: number) {
 export interface RoomInfo {
   room_id: number;
   title: string;
+  uid: number;
+  cover: string;
+  background: string;
+  description: string;
   /** 0: offline, 1: online, 2: playing_uploaded_videos */
   live_status: 0 | 1 | 2;
   /** start_time = new Date(live_start_time * 1000) */
@@ -132,12 +136,11 @@ export class Connection {
     if (this.info) {
       this.send(
         this._encode("join", {
-          uid: 0,
+          uid: this.info.uid,
           roomid: this.info.room_id,
           key: this.info.token,
           protover: 2,
           platform: "web",
-          clientver: "2.0.11",
           type: 2,
         }),
       );
