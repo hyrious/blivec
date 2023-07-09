@@ -8,6 +8,8 @@ import readline from "readline";
 import {
   Connection,
   Events,
+  danmakuHistory,
+  dm_v2_face,
   getFeedList,
   getRoomPlayInfo,
   searchRoom,
@@ -94,6 +96,9 @@ function quit_repl() {
   }
 }
 
+// Only print history danmaku once.
+let init_history = true;
+
 function listen(id: number, { json = false } = {}) {
   let count = 0;
   let con: Connection;
@@ -112,6 +117,18 @@ function listen(id: number, { json = false } = {}) {
               log.info(`listening ${title} (start at ${time})`);
             } else {
               log.info(`listening ${title} (offline)`);
+            }
+            if (init_history) {
+              init_history = false;
+              danmakuHistory(id)
+                .then((messages) => {
+                  for (const { timeline, nickname, text } of messages) {
+                    const time = timeline.slice(-8, -3);
+                    console.log(`[${time}] [${nickname}]`, text);
+                  }
+                  log.info("history end");
+                })
+                .catch(() => void 0);
             }
             const repl = setup_repl();
             repl.on("line", (line) => {
@@ -139,6 +156,8 @@ function listen(id: number, { json = false } = {}) {
             const time = new Date(a.info[0][4]).toLocaleString("zh-CN").slice(-8, -3);
             const message = a.info[1];
             const user = a.info[2][1];
+            // const face = dm_v2_face(a.dm_v2);
+            // console.log(face);
             console.log(`[${time}] [${user}]`, message);
           }
         },

@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.3.20
+
+- Include history danmaku on first listen.
+
 ## 0.3.18
 
-- Fix time slice range in previous version.
+- Fixed time slice range in previous version.
 
 ## 0.3.17
 

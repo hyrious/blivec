@@ -471,6 +471,27 @@ export async function searchRoom(keyword: string) {
   return (data as SerachResult).result;
 }
 
+interface HistoryResult {
+  room: {
+    uid: number;
+    nickname: string;
+    text: string;
+    timeline: string; // "YYYY-MM-DD HH:MM:SS"
+  }[];
+}
+
+export async function danmakuHistory(roomid: number) {
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
+    "Referer": `https://live.bilibili.com/${roomid}`,
+  };
+  const api = "https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory";
+  const info = await get(`${api}?roomid=${roomid}&room_type=0`, { headers });
+  const { code, message, data } = JSON.parse(info);
+  if (code != 0) throw new Error(message);
+  return (data as HistoryResult).room;
+}
+
 export function testUrl(url: string, headers: string[] = []) {
   if (!url) return false;
   const options: https.RequestOptions = {};
@@ -487,4 +508,67 @@ export function testUrl(url: string, headers: string[] = []) {
 
 export function stripTags(html: string) {
   return html.replace(/<[^>]+>/g, "");
+}
+
+function protobuf(buffer: Buffer) {
+  let pos = 0;
+
+  function varint() {
+    let shift: number, byte: number, result: number;
+    shift = result = 0;
+    do {
+      byte = buffer[pos++];
+      result += (byte & 0x7f) << shift;
+      shift += 7;
+    } while (byte & 0x80);
+    return result;
+  }
+
+  function str(len: number) {
+    const result = buffer.subarray(pos, pos + len);
+    pos += len;
+    return result;
+  }
+
+  const result: [number, any][] = [];
+  while (pos < buffer.byteLength) {
+    const raw = varint();
+    const type = raw & 0b111;
+    const index = raw >> 3;
+
+    let value: any;
+    // prettier-ignore
+    switch (type) {
+      case 0: value = varint();      break;
+      case 1: value = str(8);        break;
+      case 2: value = str(varint()); break;
+      case 5: value = str(4);        break;
+      default: throw new Error(`Unknown type ${type}`);
+    }
+
+    result.push([index, value]);
+  }
+
+  return result;
+}
+
+/**
+ * If you got `{ "cmd": "DANMU_MSG", "dm_v2": "base64" }`,
+ * you can decode "base64" with this function.
+ */
+export function dm_v2_face(base64: string) {
+  const buffer = Buffer.from(base64, "base64");
+  // This buffer is a protobuf message with the structure:
+  // { [20]: { [4]: "face-url" } }
+  // So here we go
+
+  const user = protobuf(buffer).find((e) => e[0] === 20);
+  if (user) {
+    const face = protobuf(user[1]).find((e) => e[0] === 4);
+    if (face) {
+      return face[1].toString() as string;
+    }
+  }
+
+  return null;
 }
