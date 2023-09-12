@@ -34,7 +34,7 @@
   "devDependencies": {
     "@hyrious/dts": "^0.1.9",
     "@hyrious/rimraf": "^0.1.0",
-    "@types/node": "^18.16.19",
-    "esbuild": "^0.18.11"
+    "@types/node": "^18.17.15",
+    "esbuild": "^0.19.2"
   }
 }

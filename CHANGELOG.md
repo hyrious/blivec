@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.21
+
+- Upgrade dependencies.
+
 ## 0.3.20
 
 - Include history danmaku on first listen.

@@ -22,6 +22,7 @@ const brotliDecompressAsync = /* @__PURE__ */ promisify(brotliDecompress);
 const EMPTY_BUFFER = /* @__PURE__ */ Buffer.alloc(0);
 
 const api_index = "https://api.live.bilibili.com/xlive/web-room/v1/index";
+const User_Agent = "Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1";
 
 export interface DanmuInfo {
   token: string;
@@ -56,6 +57,19 @@ export async function getRoomInfo(id: number) {
   return (data as { room_info: RoomInfo }).room_info;
 }
 
+export async function getUid(env: Env) {
+  const { SESSDATA, bili_jct } = env;
+  const headers = {
+    "User-Agent": User_Agent,
+    "Referer": "https://www.bilibili.com/",
+    "Cookie": `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}`,
+  };
+  const info = await get("https://api.bilibili.com/x/web-interface/nav", { headers });
+  const { code, message, data } = JSON.parse(info);
+  if (code != 0) throw new Error(message);
+  return (data as { mid: number }).mid;
+}
+
 type TYPE = "heartbeat" | "message" | "welcome" | "unknown" | "join";
 const OP_TYPE_MAP: Record<number, TYPE> = {
   3: "heartbeat",
@@ -80,18 +94,25 @@ export interface Events {
 export class Connection {
   socket: Socket | null = null;
   buffer = EMPTY_BUFFER;
+  uid = 0;
   info: ConnectionInfo | null = null;
 
   timer_reconnect = /* @__PURE__ */ setTimeout(noop);
   timer_heartbeat = /* @__PURE__ */ setTimeout(noop);
 
-  constructor(readonly roomId: number, readonly events: Events = {}) {
+  constructor(
+    readonly roomId: number,
+    readonly events: Events = {},
+    readonly getUid: Promise<number> | null,
+  ) {
     this.reconnect();
   }
 
   _closed = false;
   _connect_index = 0;
   async connect() {
+    if (this.getUid) this.uid = await this.getUid;
+
     const { room_id, title, ...rest } = await getRoomInfo(this.roomId);
     const { host_list, token } = await getDanmuInfo(room_id);
     this.info = { room_id, title, token, host_list, ...rest };
@@ -136,11 +157,11 @@ export class Connection {
     if (this.info) {
       this.send(
         this._encode("join", {
-          uid: this.info.uid,
+          uid: this.uid || this.info.uid,
           roomid: this.info.room_id,
           key: this.info.token,
-          protover: 2,
-          platform: "web",
+          protover: 3,
+          platform: "danmuji",
           type: 2,
         }),
       );
@@ -320,7 +341,7 @@ interface FeedListResult {
 export async function getFeedList(env: Env): Promise<FeedListItem[]> {
   const { SESSDATA, bili_jct } = env;
   const headers = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
+    "User-Agent": User_Agent,
     "Referer": "https://www.bilibili.com/",
     "Cookie": `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}`,
   };
@@ -461,7 +482,7 @@ export async function searchRoom(keyword: string) {
   const params = "&order=online&coverType=user_cover&page=1";
   const info = await get(`${api}?search_type=live_room&keyword=${keyword}${params}`, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
+      "User-Agent": User_Agent,
       "Referer": `https://search.bilibili.com/live?keyword=${keyword}${params}&search_type=live`,
       "Cookie": `buvid3=${crypto.randomUUID()}infoc;`,
     },
@@ -482,7 +503,7 @@ interface HistoryResult {
 
 export async function danmakuHistory(roomid: number) {
   const headers = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1",
+    "User-Agent": User_Agent,
     "Referer": `https://live.bilibili.com/${roomid}`,
   };
   const api = "https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory";

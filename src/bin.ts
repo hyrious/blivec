@@ -7,11 +7,12 @@ import cp from "child_process";
 import readline from "readline";
 import {
   Connection,
+  Env,
   Events,
   danmakuHistory,
-  dm_v2_face,
   getFeedList,
   getRoomPlayInfo,
+  getUid,
   searchRoom,
   sendDanmaku,
   stripTags,
@@ -100,6 +101,9 @@ function quit_repl() {
 let init_history = true;
 
 function listen(id: number, { json = false } = {}) {
+  const env = get_cookie(true);
+  const uid = env && getUid(env).catch((err) => (log.catch_error(err), 0));
+
   let count = 0;
   let con: Connection;
 
@@ -165,7 +169,7 @@ function listen(id: number, { json = false } = {}) {
         quit: quit_repl,
       };
 
-  con = new Connection(id, events);
+  con = new Connection(id, events, uid);
 
   return con;
 }
@@ -201,9 +205,12 @@ function cookiePath(path?: string) {
   if (fs.existsSync(path)) return path;
 }
 
-function get_cookie() {
+function get_cookie(): Env;
+function get_cookie(silent: true): Env | null;
+function get_cookie(silent = false) {
   const path = cookiePath();
   if (!path) {
+    if (silent) return null;
     log.error('Please create a file "cookie.txt" in current directory.');
     example();
     process.exit(1);
@@ -223,6 +230,7 @@ function get_cookie() {
   if (env.SESSDATA && env.bili_jct) {
     return env;
   } else {
+    if (silent) return null;
     log.error("Invalid cookie.txt");
     example();
     process.exit(1);
