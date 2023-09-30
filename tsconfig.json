@@ -1,14 +1,18 @@
 {
-  "include": ["src"],
   "compilerOptions": {
-    "noEmit": true,
-    "strict": true,
     "target": "esnext",
-    "module": "esnext",
-    "types": ["node"],
     "lib": ["esnext"],
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "useUnknownInCatchVariables": false
-  }
+    "useDefineForClassFields": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "declaration": true,
+    "outDir": "lib",
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "useUnknownInCatchVariables": false,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
 }

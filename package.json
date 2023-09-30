@@ -1,40 +1,32 @@
 {
   "name": "@hyrious/blivec",
-  "version": "0.3.21",
-  "description": "bilibili live cli",
   "type": "module",
-  "main": "./dist/index.js",
-  "exports": "./dist/index.js",
-  "bin": {
-    "bl": "./dist/bin.js"
-  },
-  "files": [
-    "src",
-    "dist"
-  ],
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "test": "node dist/bin.js",
-    "clean": "rimraf dist",
-    "build": "npm run clean && npm run build:js && npm run build:types",
-    "build:js": "esbuild src/index.ts src/bin.ts --target=node16.15 --outdir=dist",
-    "build:types": "dts src/index.ts -o dist/index.d.ts"
-  },
-  "engines": {
-    "node": ">=16.15"
-  },
+  "version": "0.4.0",
+  "description": "bilibili live cli",
+  "author": "hyrious <hyrious@outlook.com>",
+  "license": "MIT",
   "repository": "hyrious/blivec",
   "keywords": [
     "bilibili",
-    "danmaku",
-    "stream"
+    "danmaku"
   ],
-  "author": "hyrious <hyrious@outlook.com>",
-  "license": "MIT",
+  "exports": "./lib/blivec.js",
+  "types": "lib/blivec.d.ts",
+  "bin": {
+    "bl": "cli.js"
+  },
+  "files": [
+    "cli.js",
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p ."
+  },
   "devDependencies": {
-    "@hyrious/dts": "^0.1.9",
-    "@hyrious/rimraf": "^0.1.0",
-    "@types/node": "^18.17.15",
-    "esbuild": "^0.19.2"
+    "@antfu/eslint-config": "1.0.0-beta.17",
+    "@types/node": "^20.7.1",
+    "eslint": "^8.50.0",
+    "typescript": "^5.2.2"
   }
 }

@@ -1,5 +1,7 @@
 # <samp>&gt; <ins>b</ins>ilibili-<ins>live</ins>-<ins>c</ins>li</samp>
 
+[![code style](https://antfu.me/badge-code-style.svg)](https://github.com/antfu/eslint-config)
+
 Personal tool for viewing <ruby>弾幕 <rp>(</rp><rt>danmaku</rt><rp>)</rp></ruby> and other utils in bilibili live streaming.
 
 ## Why
@@ -25,49 +27,31 @@ bl ...args
 
 ## Usage
 
-### Listen Danmaku
+> [!NOTE]
+> Many commands require cookies to run correctly.
+> Use incognito mode to get the cookie that won't expire easily.
 
-```bash
-bl <room_id> [--json]
 ```
+  bl <room_id>                      # listen danmaku (requires cookie for
+                                      displaying user names)
+     --json                         # print all events in json
 
-### Send Danmaku
+  bl <room_id> <message>            # send danmaku (requires cookie)
 
-```bash
-bl <room_id> <message>
-```
+  bl get <room_id>                  # get stream url
+     --json                         # print them in json
 
-This command requires a cookie file named `cookie.txt` to be put at the current working directory or at your home folder.
+  bl feed                           # get feed list (requires cookie)
+     --json                         # print them in json
 
-### Get Stream URL
-
-```bash
-bl get <room_id> [--json]
-```
-
-### DD Mode
-
-```bash
-bl d <room_id> [--mpv] [--interval=1] [--on-close=quit] [-- ...player_args]
-```
-
-Use `ffplay` or `mpv` (if `--mpv` is specified) to play the stream. If it is not available, wait _interval_ minutes and try again.
-
-- `--mpv`: Use `mpv` instead of `ffplay`.
-- `--interval=<minutes>`: Wait minutes before trying again. Default is 1 minute.
-- `--on-close=<action>`: What to do when the player window is closed.
-  - `default`: Restart the player. This is super useful when there is network errors and you don't have to touch the keyboard or mouse to keep watching the stream.
-  - `quit`: Quit the whole program.
-  - `ask`: Search stream URLs and ask you for a new one to play or just quit. This is useful when you want to switch the stream quality quickly.
-- `--quit`: Same as `--on-close=quit`.
-- `--ask`: Same as `--on-close=ask`.
-
-**Note**: You can have a `~/.config/blivec.json` to config default arguments:
-
-```json
-{
-  "dd": ["--mpv", "--quit", "--", "--volume=50"]
-}
+  bl d <room_id> [--interval=1]     # dd mode
+     --interval=<minutes>           # set 0 to disable polling
+     --mpv                          # open in mpv instead
+     --on-close=<behavior>          # do something on window close
+                default             # restart player    (alias: --default)
+                ask                 # ask quality again (alias: --ask)
+                quit                # quit DD mode      (alias: --quit)
+     -- [...player_args]            # pass args to ffplay or mpv
 ```
 
 ## Develop
