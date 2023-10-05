@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+- Fix: use cookie to get token.
+
 ## 0.4.0
 
 - Requires more cookie now.

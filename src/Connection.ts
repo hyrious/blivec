@@ -64,7 +64,7 @@ export class Connection {
     const { uname, mid }: Partial<Me> = this.cookie ? await getMe(this.cookie) : {}
 
     const { room_id, title, ...rest } = await getRoomInfo(this.roomId)
-    const { host_list, token } = await getDanmuInfo(room_id)
+    const { host_list, token } = await getDanmuInfo(room_id, this.cookie)
     this.info = { room_id, title, token, host_list, ...rest, uname, mid }
     this.events.init(this.info, this._connect_index)
 
@@ -110,7 +110,7 @@ export class Connection {
         roomid: this.info.room_id,
         key: this.info.token,
         protover: 3,
-        platform: 'danmuji',
+        platform: 'web',
         type: 2,
         buvid: this.cookie?.buvid3,
       })

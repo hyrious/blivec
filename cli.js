@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
+import fs from 'node:fs'
 import tty from 'node:tty'
 import process from 'node:process'
 import cp from 'node:child_process'
@@ -513,6 +514,12 @@ function check_yes(args) {
 const [arg1, arg2, ...rest] = process.argv.slice(2)
 if (arg1 == null || arg1 === '--help' || arg2 === '--help' || rest.includes('--help')) {
   console.log(help)
+  process.exit(0)
+}
+
+if (arg1 === '-v' || arg1 === '--version') {
+  const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+  console.log(`${pkg.name}, ${pkg.version}`)
   process.exit(0)
 }
 

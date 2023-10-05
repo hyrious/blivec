@@ -26,14 +26,20 @@ export async function getMe({ SESSDATA, bili_jct }: Cookie) {
 }
 
 const live_v1 = 'https://api.live.bilibili.com/xlive/web-room/v1/index'
+const Referer_Live = 'https://live.bilibili.com'
 
 export interface DanmuInfo {
   token: string
   host_list: { host: string; port: number }[]
 }
 
-export async function getDanmuInfo(id: number) {
-  const res = await get(`${live_v1}/getDanmuInfo?id=${id}`)
+export async function getDanmuInfo(id: number, { SESSDATA, bili_jct }: Partial<Cookie> = {}) {
+  const headers = {
+    'User-Agent': User_Agent,
+    'Referer': `${Referer_Live}/${id}`,
+    'Cookie': `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}`,
+  }
+  const res = await get(`${live_v1}/getDanmuInfo?id=${id}`, { headers })
   return json<DanmuInfo>(res)
 }
 
@@ -248,7 +254,6 @@ export async function searchRoom(keyword: string) {
 }
 
 const live_history = 'https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory'
-const Referer_Live = 'https://live.bilibili.com'
 
 export type HistoryResult = {
   uid: number
