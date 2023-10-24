@@ -2,12 +2,21 @@ import type { IncomingMessage, RequestOptions } from 'node:http'
 
 import { Buffer } from 'node:buffer'
 import https from 'node:https'
+import { gunzip as gunzipAsync } from 'node:zlib'
+import { promisify } from 'node:util'
+
+const gunzip = promisify(gunzipAsync)
 
 function text(resolve: (value: string) => void) {
   return async (res: IncomingMessage) => {
     const chunks: Buffer[] = []
     for await (const chunk of res) chunks.push(chunk)
-    resolve(Buffer.concat(chunks).toString('utf8'))
+
+    let buffer = Buffer.concat(chunks)
+    if (buffer[0] === 0x1F && buffer[1] === 0x8B)
+      buffer = await gunzip(buffer)
+
+    resolve(buffer.toString('utf8'))
   }
 }
 

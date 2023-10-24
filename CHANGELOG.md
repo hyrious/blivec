@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+- Feat: play normal videos.
+
 ## 0.4.1
 
 - Fix: use cookie to get token.

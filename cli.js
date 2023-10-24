@@ -17,6 +17,9 @@ Usage:
   bl get <room_id>                  # get stream url
      --json                         # print them in json
 
+  bl play <url>                     # get video url and play it
+     --quality=480p                 # set video quality
+
   bl feed                           # get feed list (requires cookie)
      --json                         # print them in json
 
@@ -237,6 +240,116 @@ async function get(id, { json = false } = {}) {
 }
 
 /**
+ * @param {string} url
+ */
+async function get_video(url, { play = false, json = false, yes = false, mpv = false, quality = '480p' } = {}) {
+  let desc, video_title, video_url
+
+  if (!(quality in bl.QN)) {
+    log.error(`Invalid quality: ${JSON.stringify(quality)}, should be one of ${Object.keys(bl.QN)}`)
+    process.exit(1)
+  }
+
+  try {
+    const videos = await bl.extractVideos(url, {
+      // @ts-expect-error cast to enum
+      quality,
+      cookie: get_cookie(),
+    })
+    if (videos && videos.length > 0) {
+      log.info('Found videos:')
+      const width = videos.length > 9 ? 2 : 1
+      const choices = []
+      for (let i = 0; i < videos.length; i++) {
+        const { title, duration } = videos[i]
+        log.info(`  ${String(i + 1).padStart(width)}: ${title} (${format_interval(duration / 60)})`)
+        choices.push(i + 1)
+      }
+      video_title = videos[0].title
+      choices.push('Y=1', 'n')
+      const repl = setup_repl()
+      let answer = 'Y'
+      if (yes || videos.length === 1) {
+        yes && log.info(`Chooses [${videos[0].title}] because of --yes`)
+      }
+      else {
+        answer = await new Promise((resolve) => {
+          repl.question(`Choose a video, or give up: (${format_choices(choices)})`, a => resolve(a || 'Y'))
+        })
+      }
+      let selected = videos[0]
+      const i = Number.parseInt(answer)
+      if (Number.isSafeInteger(i) && i >= 1 && i <= videos.length)
+        selected = videos[i - 1]
+      else if (answer[0].toLowerCase() === 'n')
+        process.exit(0)
+
+      if (json) {
+        const data = await selected.get()
+        console.log(JSON.stringify(data, null, 2))
+        const { quality, durl } = data
+        desc = Object.keys(bl.QN).find(e => bl.QN[e] === quality)
+        video_url = durl.length > 0 ? durl[0].url : null
+      }
+      else {
+        const { quality, durl } = await selected.get()
+        desc = Object.keys(bl.QN).find(e => bl.QN[e] === quality)
+        const width = durl.length > 9 ? 2 : 1
+        if (!play) {
+          for (let i = 0; i < durl.length; i++) {
+            const { url } = durl[i]
+            console.log(`  ${String(i + 1).padStart(width)}: ${url}`)
+          }
+        }
+        video_url = durl.length > 0 ? durl[0].url : null
+      }
+    }
+  }
+  catch (err) {
+    log.catch_error(err)
+  }
+
+  if (play && video_url && video_title) {
+    /** @type {import('node:http').OutgoingHttpHeaders} */
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1',
+      'Referer': 'https://live.bilibili.com/',
+    }
+
+    const headers_cmdline = Object.entries(headers).map(([k, v]) => `${k}: ${v}`)
+    /**
+     * @param {string} url
+     * @param {string} title
+     */
+    function play(url, title) {
+      if (mpv) {
+        const args = ['--quiet']
+        args.push(`--http-header-fields=${headers_cmdline.join(',')}`)
+        args.push(`--title=${title}`)
+        args.push('--geometry=50%')
+        args.push(url)
+        return cp.spawn('mpv', args, { stdio: 'ignore', detached: true })
+      }
+      else {
+        const args = ['-hide_banner', '-loglevel', 'error']
+        args.push('-headers', headers_cmdline.map(e => `${e}\r\n`).join(''))
+        args.push('-window_title', title)
+        args.push('-x', '720', '-y', '405')
+        args.push(url)
+        return cp.spawn('ffplay', args, { stdio: 'ignore' })
+      }
+    }
+
+    log.info(`Now Playing: [${desc}] ${video_title}`)
+    const child = play(video_url, video_title)
+    child.on('exit', () => process.exit(0))
+  }
+
+  if (!video_url)
+    log.info('Not found videos')
+}
+
+/**
  * @param {number} minutes
  */
 function format_interval(minutes) {
@@ -247,9 +360,9 @@ function format_interval(minutes) {
     if (seconds === 1)
       return '1 second'
     if (seconds > 1)
-      return `${seconds} seconds`
+      return `${seconds | 0} seconds`
   }
-  return `${minutes} minutes`
+  return `${minutes.toFixed(2)} minutes`
 }
 
 /**
@@ -529,7 +642,7 @@ let action = 'listen'
 let id_or_keyword
 let id
 
-if (arg1 === 'get' || arg1 === 'd' || arg1 === 'dd' || arg1 === 'feed') {
+if (arg1 === 'get' || arg1 === 'play' || arg1 === 'd' || arg1 === 'dd' || arg1 === 'feed') {
   action = arg1
   id_or_keyword = arg2
 }
@@ -545,6 +658,18 @@ if (arg1 !== 'feed' && !id_or_keyword) {
 // the feed command do not need room id, so handle it here
 if (action === 'feed') {
   await feed({ json: arg2 === '--json' })
+  process.exit()
+}
+
+// handle "get <url>" here
+if ((action === 'get' || action === 'play') && id_or_keyword.includes('://')) {
+  await get_video(id_or_keyword, {
+    json: rest.includes('--json'),
+    yes,
+    play: action === 'play',
+    mpv: rest.includes('--mpv'),
+    quality: rest.find(e => e.startsWith('--quality='))?.slice(10),
+  })
   process.exit()
 }
 

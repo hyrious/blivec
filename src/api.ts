@@ -270,3 +270,177 @@ export async function danmakuHistory(roomid: number) {
   const res = await get(`${live_history}?roomid=${roomid}&room_type=0`, { headers })
   return json<{ room: HistoryResult }>(res).room
 }
+
+const valid_url = /https?:\/\/(?:(?:www|bangumi)\.)?bilibili\.(?:tv|com)\/(?:(?:video\/[aA][vV]|anime\/(?<anime_id>\d+)\/play\#)(?<id_bv>\d+)|video\/[bB][vV](?<id>[^/?#&]+))/
+const pagelist = 'https://api.bilibili.com/x/player/pagelist'
+const playurl = 'https://api.bilibili.com/x/player/playurl'
+
+/** `qn=64` = request 720p video */
+export const QN = {
+  /** need MP4 + platform=html5, see {@link FNVAL} */
+  '240p': 6,
+  '360p': 16,
+  '480p': 32,
+  /** default */
+  '720p': 64,
+  '720p60': 74,
+  '1080p': 80,
+  /** need svip */
+  '1080p+': 112,
+  /** need svip */
+  '1080p60': 116,
+  /** need svip and fnval=128 and fourk=1 */
+  '4K': 120,
+  /** need svip, only DASH and fnval=64 */
+  'HDR': 125,
+  /** need svip, only DASH and fnval=512 */
+  'Dolby': 126,
+  /** need svip, only DASH and fnval=1024 */
+  '8K': 127,
+} as const
+
+/** `fnval=80` = 16|64 = DASH + HDR */
+export const FNVAL = {
+  /** @deprecated */
+  flv: 0,
+  mp4: 1,
+  dash: 16,
+  /** need `qn=125` */
+  hdr: 64,
+  /** need `qn=120` */
+  fourk: 128,
+  /** need DASH */
+  dolby_audio: 256,
+  /** need DASH */
+  dolby_video: 512,
+  eightk: 1024,
+  av1: 2048,
+} as const
+
+export const CODEC = {
+  avc: 7,
+  hevc: 12,
+  av1: 13,
+} as const
+
+export const FLAC = {
+  '64K': 30216,
+  '132K': 30232,
+  '192K': 30280,
+  'Dolby': 30250,
+  'Hi-Res': 30251,
+}
+
+export type PageList = {
+  cid: number
+  page: number
+  part: string
+  duration: number
+  dimension: {
+    width: number
+    height: number
+    rotate: number
+  }
+}[]
+
+export type VideosInfo = {
+  title: string
+  /** seconds */
+  duration: number
+  cid: number
+  size: {
+    width: number
+    height: number
+  }
+  get(): Promise<PlayVideoInfo>
+}[]
+
+export interface ExtractVideoOptions {
+  /** Default `"480p"` */
+  quality?: Extract<keyof typeof QN, string>
+  /** Default `["mp4"]` */
+  format?: Extract<keyof typeof FNVAL, string>[]
+  fourk?: boolean
+  cookie?: Cookie
+}
+
+/**
+ * @param url "https://www.bilibili.com/video/BVxxxxxxxx"
+ */
+export async function extractVideos(url: string, options: ExtractVideoOptions = {}): Promise<VideosInfo | null> {
+  const match = url.match(valid_url)
+  if (match == null)
+    return null
+
+  const aid = match.groups!.id_bv
+  const bvid = match.groups!.id
+  if (aid == null && bvid == null)
+    return null
+
+  const headers: OutgoingHttpHeaders = {
+    'User-Agent': User_Agent,
+    'Referer': Referer_Home,
+  }
+  const res = await get(`${pagelist}?${aid ? `aid=${aid}` : `bvid=${bvid}`}`, { headers })
+
+  const fnval = (options.format || ['mp4']).reduce((sum, e) => sum | FNVAL[e], 0)
+
+  let prefix = `${playurl}?fnval=${fnval}&fnver=0`
+  prefix += aid ? `&avid=${aid}` : `&bvid=${bvid}`
+  prefix += `&fourk=${options.fourk ? 1 : 0}`
+  prefix += `&qn=${QN[options.quality || '480p']}`
+
+  const videos = json<PageList>(res).map(p => ({
+    title: p.part,
+    duration: p.duration,
+    cid: p.cid,
+    size: p.dimension,
+    get: () => playVideo(`${prefix}&cid=${p.cid}`, options.cookie),
+  }))
+
+  return videos
+}
+
+export interface PlayVideoInfo {
+  quality: typeof QN[keyof typeof QN]
+  format: string
+  timelength: number
+  /** split by `,` */
+  accept_format: string
+  accept_description: string[]
+  accept_quality: number[]
+  video_codecid: typeof CODEC[keyof typeof CODEC]
+  /** only when NOT DASH */
+  durl: {
+    order: number
+    length: number
+    size: number
+    url: string
+    backup_url: string[]
+  }[]
+  /** TODO: */
+  dash?: any
+  support_formats: {
+    quality: typeof QN[keyof typeof QN]
+    format: string
+    new_description: string
+    display_desc: string
+    superscript: string
+    codecs: string[] | null
+  }[]
+  last_play_time: number
+  last_play_cid: number
+}
+
+/**
+ * The `url` comes from {@link extractVideos}().
+ */
+export async function playVideo(url: string, { SESSDATA, bili_jct }: Partial<Cookie> = {}): Promise<PlayVideoInfo> {
+  const headers: OutgoingHttpHeaders = {
+    'User-Agent': User_Agent,
+    'Referer': Referer_Home,
+    'Cookie': `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}`,
+  }
+  const res = await get(url, { headers })
+  return json<PlayVideoInfo>(res)
+}
