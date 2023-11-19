@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3
+
+- Fix: missing `bubble=0` in sending message.
+
 ## 0.4.2
 
 - Feat: play normal videos.

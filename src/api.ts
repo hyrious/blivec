@@ -70,7 +70,7 @@ export function sendDanmaku(id: number, message: string, { SESSDATA, bili_jct }:
     'Content-Type': 'application/x-www-form-urlencoded',
   }
   const body
-    = `color=16777215&fontsize=25&mode=1`
+    = `bubble=0&color=16777215&fontsize=25&mode=1`
     + `&msg=${encodeURIComponent(message)}`
     + `&rnd=${t}&roomid=${id}&csrf=${bili_jct}&csrf_token=${bili_jct}`
   return post(live_send, body, { headers })

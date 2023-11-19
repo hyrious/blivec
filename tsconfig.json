@@ -6,12 +6,12 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": ["node"],
-    "declaration": true,
-    "outDir": "lib",
-    "verbatimModuleSyntax": true,
     "strict": true,
     "noImplicitOverride": true,
     "useUnknownInCatchVariables": false,
+    "declaration": true,
+    "outDir": "lib",
+    "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
   "include": ["src"]
