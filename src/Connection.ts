@@ -149,7 +149,7 @@ export class Connection {
   }
 
   async _decode(buffer: Buffer) {
-    const tasks: Promise<{ protocol: number; type: TYPE; data: any }>[] = []
+    const tasks: Promise<{ protocol: number, type: TYPE, data: any }>[] = []
     for (let i = 0, size: number; i < buffer.length; i += size) {
       size = buffer.readUInt32BE(i)
       tasks.push(this._decode2(buffer.subarray(i, i + size)))
@@ -181,7 +181,7 @@ export class Connection {
     return { protocol, type, data }
   }
 
-  _on_decoded(rs: { type: TYPE; data: any }[]) {
+  _on_decoded(rs: { type: TYPE, data: any }[]) {
     if (this._closed)
       return
     for (const { type, data } of rs) {

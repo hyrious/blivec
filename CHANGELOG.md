@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.4
+
+- Feat: play normal videos by searching keywords.
+
 ## 0.4.3
 
 - Fix: missing `bubble=0` in sending message.

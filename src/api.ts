@@ -13,7 +13,7 @@ export interface Cookie {
   buvid3: string
 }
 
-export interface Me { uname: string; mid: number }
+export interface Me { uname: string, mid: number }
 
 export async function getMe({ SESSDATA, bili_jct }: Cookie) {
   const headers: OutgoingHttpHeaders = {
@@ -30,7 +30,7 @@ const Referer_Live = 'https://live.bilibili.com'
 
 export interface DanmuInfo {
   token: string
-  host_list: { host: string; port: number }[]
+  host_list: { host: string, port: number }[]
 }
 
 export async function getDanmuInfo(id: number, { SESSDATA, bili_jct }: Partial<Cookie> = {}) {
@@ -131,7 +131,7 @@ interface PlayUrlInfo {
   playurl_info: {
     playurl: {
       // quality number desc: [{ qn: 150, desc: '高清' }]
-      g_qn_desc: Array<{ qn: number; desc: string }>
+      g_qn_desc: Array<{ qn: number, desc: string }>
       stream: Array<{
         protocol_name: string
         format: Array<{
@@ -251,6 +251,37 @@ export async function searchRoom(keyword: string) {
   const url = `${search}/type?search_type=live_room&keyword=${keyword}${params}`
   const res = await get(url, { headers })
   return json<{ result: SerachResult }>(res).result
+}
+
+export type VideoSearchResult = {
+  aid: number
+  bvid: string
+  mid: number
+  author: string
+  arcurl: string
+  title: string
+  pic: string
+  play: number
+  favorites: number
+  like: number
+  danmaku: number
+  pubdate: number
+  tag: string
+  /** 'MM:SS' */
+  duration: string
+}[]
+
+export async function searchVideo(keyword: string) {
+  keyword = encodeURIComponent(keyword)
+  const params = '&order=totalrank&duration=0&tids=0&page=1'
+  const headers: OutgoingHttpHeaders = {
+    'User-Agent': User_Agent,
+    'Referer': `${Referer_Search}?keyword=${keyword}${params}&search_type=video`,
+    'Cookie': `buvid3=${crypto.randomUUID()}infoc;`,
+  }
+  const url = `${search}/type?search_type=video&keyword=${keyword}${params}`
+  const res = await get(url, { headers })
+  return json<{ result: VideoSearchResult }>(res).result
 }
 
 const live_history = 'https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory'
