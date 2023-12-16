@@ -285,11 +285,15 @@ async function getVideo(url: string, { play = false, json = false, yes = false, 
   if (data.dash) {
     const v = data.dash.video[0]?.base_url
     const a = data.dash.audio?.[0]?.base_url
+    if (!v && !a) {
+      log.info('Not found any video')
+      return
+    }
     if (play) {
       // 1. Merge 2 streams with ffmpeg, and stream the result to HTTP endpoint
       const temp_port = 1145 + Math.floor(Math.random() * 14191)
       const temp_address = `http://localhost:${temp_port}`
-      const temp_args = []
+      const temp_args = ['-headers', headersCmdline.map(e => `${e}\r\n`).join('')]
       v && temp_args.push('-i', v)
       a && temp_args.push('-i', a)
       temp_args.push('-codec', 'copy')
@@ -297,7 +301,12 @@ async function getVideo(url: string, { play = false, json = false, yes = false, 
       temp_args.push('-listen', '1')
       temp_args.push('-movflags', 'frag_keyframe+empty_moov')
       temp_args.push(temp_address)
+      if (process.env.DEBUG) {
+        log.debug('spawn ffmpeg with args:')
+        console.log(temp_args)
+      }
       cp.spawn('ffmpeg', temp_args, { detached: true }) // will show a window, never mind
+      log.info('DASH may not always work, set a lower quality if failed')
       // 2. Play it
       log.info(`Now Playing: [${desc}] ${video_title}`)
       const child = spawnPlayer(mpv, temp_address, video_title, args)
