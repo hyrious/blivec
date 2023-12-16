@@ -11,22 +11,22 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const hasColors = tty.WriteStream.prototype.hasColors()
 
-function format(s: number, e: number) {
+function format_(s: number, e: number) {
   return hasColors
     ? (m: string) => `\x1B[${s}m${m}\x1B[${e}m`
     : (m: string) => m
 }
 
-const bold = format(1, 0)
+const bold = format_(1, 0)
 
-const black = format(30, 39)
-const red = format(31, 39)
-const cyan = format(36, 39)
-const bgRed = format(41, 49)
-const bgCyan = format(46, 49)
-const gray = format(90, 39)
-const bgGray = format(100, 49)
-const bgWhite = format(107, 49)
+const black = format_(30, 39)
+const red = format_(31, 39)
+const cyan = format_(36, 39)
+const bgRed = format_(41, 49)
+const bgCyan = format_(46, 49)
+const gray = format_(90, 39)
+const bgGray = format_(100, 49)
+const bgWhite = format_(107, 49)
 
 const blackBgWhite = (s: string) => bgWhite(black(s))
 const blackBgGray = (s: string) => bgGray(black(s))
@@ -37,7 +37,11 @@ const log = {
   error: (msg: string) => console.error(blackBgRed(' ERROR '), red(msg)),
   info: (msg: string) => console.error(blackBgCyan(' BLIVC '), cyan(msg)),
   debug: (msg: string) => console.error(blackBgGray(' DEBUG '), gray(msg)),
-  catchError: (error: Error) => log.error(error.message),
+  catchError: (error: Error) => {
+    if (process.env.DEBUG)
+      console.error(error)
+    else log.error(error.message)
+  },
 }
 
 const help = `
@@ -48,16 +52,18 @@ ${blackBgWhite('Usage:')} bl <command> [arguments]
   ${bold('bl <room_id> <message>')}  send danmaku (requires cookie)
 
   ${bold('bl get <room_id>')}        get stream url
+  ${bold('   --video')}              assume the keyword is not live but video
   ${bold('   --json')}               print streams in json
 
   ${bold('bl play <url>')}           get video url and play it
-  ${bold('   --quality=480p')}       set quality
+  ${bold('   --format=mp4')}         mp4, dash (1080p), av1
+  ${bold('   --quality=480p')}       240p, 360p, 480p, 720p, 720p60, 1080p
 
   ${bold('bl feed')}                 get feed list (requires cookie)
   ${bold('   --json')}               print feeds in json
 
   ${bold('bl d <room_id>')}          dd mode
-  ${bold('   --interval=1')}         polling interval in minutes, set 0 to disable
+  ${bold('   --interval=1')}         polling interval in minutes, 0 means once
   ${bold('   --mpv')}                open in mpv instead of ffplay
   ${bold('   --on-close=default')}   do somthing on player close
   ${bold('              default')}   restart player    (alias: --default)
@@ -118,6 +124,11 @@ function formatInterval(minutes: number) {
       return `${seconds | 0} seconds`
   }
   return `${minutes.toFixed(2)} minutes`
+}
+
+function formatDuration(seconds: number) {
+  const minutes = seconds / 60 | 0
+  return `${String(minutes).padStart(2, '0')}:${String(seconds - minutes * 60).padStart(2, '0')}`
 }
 
 function formatChoices(choices: (string | number)[]) {
@@ -205,22 +216,31 @@ function spawnPlayer(mpv: boolean, url: string, title: string, extra: string[]) 
   }
 }
 
-async function getVideo(url: string, { play = false, json = false, yes = false, mpv = false, quality = '480p', args = [] as string[] } = {}) {
-  let desc!: string, video_title!: string, video_url!: string
+async function getVideo(url: string, { play = false, json = false, yes = false, mpv = false, format = 'mp4', quality = '480p', args = [] as string[] } = {}) {
+  let desc!: string, video_title!: string, video_url!: string[], data!: bl.PlayVideoInfo
 
   if (!(quality in bl.QN)) {
     log.error(`Invalid quality: ${JSON.stringify(quality)}, should be one of ${Object.keys(bl.QN)}`)
     process.exit(1)
   }
 
+  if (quality.startsWith('1080') && !format.includes('dash')) {
+    log.info('Turned on --format=dash because of 1080p')
+    format = 'dash'
+  }
+
   try {
-    const videos = await bl.extractVideos(url, { quality: quality as keyof typeof bl.QN, cookie: getCookie() })
+    const videos = await bl.extractVideos(url, {
+      format: format.split(',') as (keyof typeof bl.FNVAL)[],
+      quality: quality as keyof typeof bl.QN,
+      cookie: getCookie(),
+    })
     if (videos && videos.length > 0) {
       const width = videos.length > 9 ? 2 : 1
       const choices: (string | number)[] = []
       for (let i = 0; i < videos.length; i++) {
         const { title, duration } = videos[i]
-        log.info(`  ${String(i + 1).padStart(width)}: ${title} (${formatInterval(duration / 60)})`)
+        log.info(`  ${String(i + 1).padStart(width)}: ${title} (${formatDuration(duration)})`)
         choices.push(i + 1)
       }
       video_title = videos[0].title
@@ -241,17 +261,19 @@ async function getVideo(url: string, { play = false, json = false, yes = false, 
       else if (answer[0].toLowerCase() === 'n')
         process.exit(0)
 
-      const data = await selected.get()
+      data = await selected.get()
       const { quality, durl } = data
-      desc = Object.keys(bl.QN).find(e => bl.QN[e as keyof typeof bl.QN] === quality)!
-      video_url = durl.length > 0 ? durl[0].url : ''
       if (json) {
         console.log(JSON.stringify(data, null, 2))
       }
-      else if (!play) {
-        const width = durl.length > 9 ? 2 : 1
-        for (let i = 0; i < durl.length; ++i)
-          console.log(`  ${String(i + 1).padStart(width)}: ${durl[i].url}`)
+      else {
+        desc = Object.keys(bl.QN).find(e => bl.QN[e as keyof typeof bl.QN] === quality)!
+        video_url = durl ? durl.map(d => d.url) : []
+        if (!play) {
+          const width = video_url.length > 9 ? 2 : 1
+          for (let i = 0; i < video_url.length; ++i)
+            console.log(`  ${String(i + 1).padStart(width)}: ${video_url[i]}`)
+        }
       }
     }
   }
@@ -260,13 +282,41 @@ async function getVideo(url: string, { play = false, json = false, yes = false, 
     process.exitCode = 1
   }
 
-  if (play && video_url && video_title) {
+  if (data.dash) {
+    const v = data.dash.video[0]?.base_url
+    const a = data.dash.audio?.[0]?.base_url
+    if (play) {
+      // 1. Merge 2 streams with ffmpeg, and stream the result to HTTP endpoint
+      const temp_port = 1145 + Math.floor(Math.random() * 14191)
+      const temp_address = `http://localhost:${temp_port}`
+      const temp_args = []
+      v && temp_args.push('-i', v)
+      a && temp_args.push('-i', a)
+      temp_args.push('-codec', 'copy')
+      temp_args.push('-f', 'mp4')
+      temp_args.push('-listen', '1')
+      temp_args.push('-movflags', 'frag_keyframe+empty_moov')
+      temp_args.push(temp_address)
+      cp.spawn('ffmpeg', temp_args, { detached: true }) // will show a window, never mind
+      // 2. Play it
+      log.info(`Now Playing: [${desc}] ${video_title}`)
+      const child = spawnPlayer(mpv, temp_address, video_title, args)
+      child.on('exit', () => process.exit(0))
+    }
+    else {
+      v && console.log(`  video: ${v}`)
+      a && console.log(`  audio: ${a}`)
+    }
+    return
+  }
+
+  if (play && video_url && video_url.length > 0) {
     log.info(`Now Playing: [${desc}] ${video_title}`)
-    const child = spawnPlayer(mpv, video_url, video_title, args)
+    const child = spawnPlayer(mpv, video_url[0], video_title, args)
     child.on('exit', () => process.exit(0))
   }
 
-  if (!video_url)
+  if (!video_url || video_url.length === 0)
     log.info('Not found any video')
 }
 
@@ -544,9 +594,11 @@ if (config) {
 }
 
 let yes = false
+let video = false
 let json = false
 let mpv = false
 let interval = 1
+let format = 'mp4'
 let quality = '480p'
 let on_close = 'default'
 let playerArgs: string[] = []
@@ -565,6 +617,10 @@ for (let i = 0; i < args.length; ++i) {
     mpv = true
     continue
   }
+  if (args[i] === '--video') {
+    video = true
+    continue
+  }
   if (args[i] === '--interval' || args[i].startsWith('--interval=')) {
     if (args[i] === '--interval')
       interval = Number(args[++i])
@@ -574,6 +630,13 @@ for (let i = 0; i < args.length; ++i) {
       log.error(`Invalid interval: ${args[i]}, expect a number >= 0`)
       process.exit(1)
     }
+    continue
+  }
+  if (args[i] === '--format' || args[i].startsWith('--format=')) {
+    if (args[i] === '--format')
+      format = (args[++i])
+    else
+      format = (args[i].slice('--format='.length))
     continue
   }
   if (args[i] === '--quality' || args[i].startsWith('--quality=')) {
@@ -639,9 +702,43 @@ if (action === 'feed') {
   process.exit()
 }
 
+// If "get <?> --video", assume the keyword is used for searching video
+if (action === 'get' && video && !roomId.includes('://')) {
+  const videos = await bl.searchVideo(roomId)
+  if (videos.length === 0) {
+    log.error(`Not found video with keyword "${roomId}"`)
+    process.exit(1)
+  }
+  else if (videos.length === 1 || yes) {
+    roomId = videos[0].arcurl
+  }
+  else {
+    log.info(`Found ${videos.length} videos:`)
+    const choices: (string | number)[] = []
+    for (let i = 0; i < videos.length; i++) {
+      const video = videos[i]
+      const title = bl.stripTags(video.title)
+      log.info(`  ${String(i + 1).padStart(2)}: ${video.author} - ${title}`)
+      choices.push(i + 1)
+    }
+    choices.push('Y=1', 'n')
+    const answer = await new Promise<string>((resolve) => {
+      repl().question(`Choose a video, or give up: (${formatChoices(choices)}) `, a => resolve(a || 'Y'))
+    })
+    let selected = videos[0]
+    const i = Number.parseInt(answer)
+    if (Number.isSafeInteger(i) && i >= 1 && i <= videos.length)
+      selected = videos[i - 1]
+    else if (answer[0].toLowerCase() === 'n')
+      process.exit(0)
+    roomId = selected.arcurl
+  }
+  // now roomId is a video URL
+}
+
 // handle "get <url>" here
 if ((action === 'get' || action === 'play') && roomId.includes('://')) {
-  await getVideo(roomId, { json, yes, play: action === 'play', mpv, quality, args: playerArgs })
+  await getVideo(roomId, { json, yes, play: action === 'play', mpv, format, quality, args: playerArgs })
   process.exit()
 }
 
@@ -676,7 +773,7 @@ if (action === 'play') {
       process.exit(0)
     roomId = selected.arcurl
   }
-  await getVideo(roomId, { json, yes, play: true, mpv, quality })
+  await getVideo(roomId, { json, yes, play: true, mpv, format, quality })
   process.exit()
 }
 

@@ -442,15 +442,19 @@ export interface PlayVideoInfo {
   accept_quality: number[]
   video_codecid: typeof CODEC[keyof typeof CODEC]
   /** only when NOT DASH */
-  durl: {
+  durl?: {
     order: number
     length: number
     size: number
     url: string
     backup_url: string[]
   }[]
-  /** TODO: */
-  dash?: any
+  /** only when DASH */
+  dash?: {
+    duration: number
+    video: DashMedia[]
+    audio?: DashMedia[]
+  }
   support_formats: {
     quality: typeof QN[keyof typeof QN]
     format: string
@@ -461,6 +465,19 @@ export interface PlayVideoInfo {
   }[]
   last_play_time: number
   last_play_cid: number
+}
+
+interface DashMedia {
+  /** See {@link QN}, {@link FLAC}. */
+  id: number
+  base_url: string
+  /** in bytes */
+  bandwidth: number
+  mime_type: string
+  codecs: string
+  width?: number
+  height?: number
+  frame_rate?: string
 }
 
 /**
