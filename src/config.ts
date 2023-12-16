@@ -41,7 +41,9 @@ const config_paths = [
   path.join(homedir, '.config', 'blivec.json'),
 ]
 
-export function read_config() {
+interface Config { d?: string[], dd?: string[], play?: string[] }
+
+export function read_config(): Config | undefined {
   const p = config_paths.find(exists)
   if (p) {
     const config = JSON.parse(fs.readFileSync(p, 'utf8'))

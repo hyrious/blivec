@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.5
+
+- Fix: should work when no config file exists.
+
 ## 0.4.4
 
 - Feat: play normal videos by searching keywords.

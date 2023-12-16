@@ -5,7 +5,7 @@ import tty from 'node:tty'
 import process from 'node:process'
 import cp from 'node:child_process'
 import readline from 'node:readline'
-import * as bl from './src/blivec'
+import * as bl from './src/blivec.js'
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -42,7 +42,7 @@ const log = {
 
 const help = `
 ${blackBgWhite('Usage:')} bl <command> [arguments]
-  ${bold('bl <room_id>')}            listen danmaku (requires cookie to see user id)
+  ${bold('bl <room_id>')}            listen danmaku (need cookie to show names)
   ${bold('   --json')}               print all events in json
 
   ${bold('bl <room_id> <message>')}  send danmaku (requires cookie)
@@ -243,7 +243,7 @@ async function getVideo(url: string, { play = false, json = false, yes = false, 
 
       const data = await selected.get()
       const { quality, durl } = data
-      desc = Object.keys(bl.QN).find(e => bl.QN[e] === quality)!
+      desc = Object.keys(bl.QN).find(e => bl.QN[e as keyof typeof bl.QN] === quality)!
       video_url = durl.length > 0 ? durl[0].url : ''
       if (json) {
         console.log(JSON.stringify(data, null, 2))
@@ -512,9 +512,9 @@ if (args.includes('-v') || args.includes('--version')) {
   process.exit(0)
 }
 
-const config = bl.read_config()
-const dd = config.d || config.dd || config.play
-if (dd && (args[0] === 'd' || args[0] === 'dd' || args[0] === 'play')) {
+function apply_config(dd: string[] | undefined) {
+  if (dd == null)
+    return
   const i = dd.indexOf('--')
   if (i === -1) {
     args.unshift(...dd)
@@ -533,6 +533,14 @@ if (dd && (args[0] === 'd' || args[0] === 'dd' || args[0] === 'play')) {
       args.splice(0, args.length, ...x, ...a, '--', ...y, ...b)
     }
   }
+}
+
+const config = bl.read_config()
+if (config) {
+  if (args[0] === 'play')
+    apply_config(config.play || config.d || config.dd)
+  else if (args[0] === 'd' || args[0] === 'dd')
+    apply_config(config.d || config.dd)
 }
 
 let yes = false
