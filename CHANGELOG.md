@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.6
+
+- Feat: feed `-d` to DD mode.
+
 ## 0.4.5
 
 - Fix: should work when no config file exists.

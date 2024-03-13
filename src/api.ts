@@ -383,7 +383,7 @@ export type VideosInfo = {
     width: number
     height: number
   }
-  get(): Promise<PlayVideoInfo>
+  get: () => Promise<PlayVideoInfo>
 }[]
 
 export interface ExtractVideoOptions {

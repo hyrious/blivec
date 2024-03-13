@@ -61,6 +61,7 @@ ${blackBgWhite('Usage:')} bl <command> [arguments]
 
   ${bold('bl feed')}                 get feed list (requires cookie)
   ${bold('   --json')}               print feeds in json
+  ${bold('   --d')}                  ask for dd mode
 
   ${bold('bl d <room_id>')}          dd mode
   ${bold('   --interval=1')}         polling interval in minutes, 0 means once
@@ -164,7 +165,7 @@ function getCookie() {
   process.exit(1)
 }
 
-async function feed({ json = false } = {}) {
+async function feed({ json = false, d = false, yes = false } = {}) {
   const env = getCookie()
 
   const list = await bl.getFeedList(env).catch((err) => {
@@ -174,7 +175,7 @@ async function feed({ json = false } = {}) {
   })
 
   if (!list)
-    return
+    return ''
 
   if (json) {
     console.log(JSON.stringify(list, null, 2))
@@ -185,6 +186,31 @@ async function feed({ json = false } = {}) {
       const { roomid, uname, title } = list[i]
       log.info(`  [${String(i + 1).padStart(2)}] ${String(roomid).padStart(8)}: ${uname} - ${title}`)
     }
+  }
+
+  if (d) {
+    let answer = 'Y'
+    if (yes) {
+      log.info('Chooses [1] because of --yes')
+    }
+    else {
+      const choices: (string | number)[] = list.map((_, i) => i + 1)
+      choices.push('Y=1', 'n')
+      answer = await new Promise<string>((resolve) => {
+        repl().question(`Choose a room, or give up: (${formatChoices(choices)}) `, a => resolve(a || 'Y'))
+      })
+    }
+    if (answer[0].toLowerCase() === 'n')
+      return ''
+
+    let selected = list[0]
+    const i = Number.parseInt(answer)
+    if (Number.isSafeInteger(i) && i >= 1 && i <= list.length)
+      selected = list[i - 1]
+    return selected.roomid
+  }
+  else {
+    return ''
   }
 }
 
@@ -598,10 +624,11 @@ const config = bl.read_config()
 if (config) {
   if (args[0] === 'play')
     apply_config(config.play || config.d || config.dd)
-  else if (args[0] === 'd' || args[0] === 'dd')
+  else if (args[0] === 'feed' || args[0] === 'd' || args[0] === 'dd')
     apply_config(config.d || config.dd)
 }
 
+let d = false
 let yes = false
 let video = false
 let json = false
@@ -674,6 +701,10 @@ for (let i = 0; i < args.length; ++i) {
     on_close = 'quit'
     continue
   }
+  if (args[i] === '-d' || args[i] === '--d' || args[i] === '--dd') {
+    d = true
+    continue
+  }
   if (args[i] === '--') {
     playerArgs = args.slice(i + 1)
     break
@@ -707,8 +738,9 @@ if (action !== 'feed' && !roomId) {
 
 // the feed command do not need room id, so handle it here
 if (action === 'feed') {
-  await feed({ json })
-  process.exit()
+  roomId = await feed({ json, d, yes })
+  if (!roomId)
+    process.exit()
 }
 
 // If "get <?> --video", assume the keyword is used for searching video
