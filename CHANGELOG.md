@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.7
+
+- Fix: `DANMU_MSG` being changed to `DANMU_MSG:*`.
+
 ## 0.4.6
 
 - Feat: feed `-d` to DD mode.
