@@ -1,7 +1,7 @@
 {
   "name": "@hyrious/blivec",
   "type": "module",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "bilibili live cli",
   "author": "hyrious <hyrious@outlook.com>",
   "license": "MIT",
