@@ -188,7 +188,7 @@ async function feed({ json = false, d = false, yes = false } = {}) {
     }
   }
 
-  if (d) {
+  if (d && list.length > 0) {
     let answer = 'Y'
     if (yes) {
       log.info('Chooses [1] because of --yes')
