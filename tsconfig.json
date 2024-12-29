@@ -1,17 +1,8 @@
 {
+  "extends": "@hyrious/configs/tsconfig.casual.json",
   "compilerOptions": {
-    "target": "esnext",
-    "lib": ["esnext"],
-    "useDefineForClassFields": false,
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "types": ["node"],
-    "strict": true,
-    "noImplicitOverride": true,
-    "useUnknownInCatchVariables": false,
-    "declaration": true,
-    "outDir": "lib",
-    "verbatimModuleSyntax": true,
-    "skipLibCheck": true
+    "target": "ES2022",
+    "module": "Node16",
+    "types": ["node"]
   }
 }

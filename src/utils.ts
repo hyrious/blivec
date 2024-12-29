@@ -2,8 +2,8 @@ import type { IncomingMessage, RequestOptions } from 'node:http'
 
 import { Buffer } from 'node:buffer'
 import https from 'node:https'
-import { gunzip as gunzipAsync } from 'node:zlib'
 import { promisify } from 'node:util'
+import { gunzip as gunzipAsync } from 'node:zlib'
 
 const gunzip = promisify(gunzipAsync)
 

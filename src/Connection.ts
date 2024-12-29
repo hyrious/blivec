@@ -1,9 +1,9 @@
-import { type Socket, createConnection } from 'node:net'
 import { Buffer } from 'node:buffer'
+import { createConnection, type Socket } from 'node:net'
 import { promisify } from 'node:util'
 import { brotliDecompress, inflate } from 'node:zlib'
 
-import { type DanmuInfo, type Me, type RoomInfo, getDanmuInfo, getMe, getRoomInfo } from './api.js'
+import { type DanmuInfo, getDanmuInfo, getMe, getRoomInfo, type Me, type RoomInfo } from './api.js'
 import { read_cookie } from './config.js'
 
 const inflateAsync = /* @__PURE__ */ promisify(inflate)

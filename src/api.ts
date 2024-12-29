@@ -57,7 +57,7 @@ export interface RoomInfo {
 }
 
 export async function getRoomInfo(id: number) {
-  const res = await get(`${live_v1}/getInfoByRoom?room_id=${id}`)
+  const res = await get(`${live_v1}/getInfoByRoom?room_id=${id}`, { headers: { 'User-Agent': User_Agent } })
   return json<{ room_info: RoomInfo }>(res).room_info
 }
 
@@ -302,7 +302,7 @@ export async function danmakuHistory(roomid: number) {
   return json<{ room: HistoryResult }>(res).room
 }
 
-const valid_url = /https?:\/\/(?:(?:www|bangumi)\.)?bilibili\.(?:tv|com)\/(?:(?:video\/[aA][vV]|anime\/(?<anime_id>\d+)\/play\#)(?<id_bv>\d+)|video\/[bB][vV](?<id>[^/?#&]+))/
+const valid_url = /https?:\/\/(?:(?:www|bangumi)\.)?bilibili\.(?:tv|com)\/(?:(?:video\/[aA][vV]|anime\/(?<anime_id>\d+)\/play#)(?<id_bv>\d+)|video\/[bB][vV](?<id>[^/?#&]+))/
 const pagelist = 'https://api.bilibili.com/x/player/pagelist'
 const playurl = 'https://api.bilibili.com/x/player/playurl'
 

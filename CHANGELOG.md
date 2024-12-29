@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.8
+
+- Fix: danmu was missing because one API adds UA check.
+
 ## 0.4.7
 
 - Fix: `DANMU_MSG` being changed to `DANMU_MSG:*`.

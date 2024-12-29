@@ -1,4 +1,6 @@
+/* eslint-disable antfu/no-top-level-await */
 import { exit } from 'node:process'
+import { external } from '@hyrious/esbuild-plugin-external'
 import { build } from 'esbuild'
 
 await build({
@@ -8,14 +10,10 @@ await build({
   format: 'esm',
   outdir: '.',
   banner: { js: '#!/usr/bin/env node' },
-  plugins: [{
-    name: 'external-src',
-    setup({ onResolve }) {
-      onResolve({ filter: /^\.\/src/ }, (args) => {
-        let path = args.path.replace('./src', './lib')
-        path.endsWith('.js') || (path += '.js')
-        return { path, external: true, sideEffects: false }
-      })
-    },
-  }],
+  plugins: [external({
+    auto: [{
+      filter: /\.js$/,
+      replace: p => p.replace('./src/', './lib/'),
+    }],
+  })],
 }).catch(() => exit(1))

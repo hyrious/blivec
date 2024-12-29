@@ -1,10 +1,10 @@
 import type { OutgoingHttpHeaders } from 'node:http'
 
-import fs from 'node:fs'
-import tty from 'node:tty'
-import process from 'node:process'
 import cp from 'node:child_process'
+import fs from 'node:fs'
+import process from 'node:process'
 import readline from 'node:readline'
+import tty from 'node:tty'
 import * as bl from './src/blivec.js'
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

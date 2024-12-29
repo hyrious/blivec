@@ -1,8 +1,8 @@
-import os from 'node:os'
-import fs from 'node:fs'
-import path from 'node:path'
-
 import type { Cookie } from './api.js'
+import fs from 'node:fs'
+import os from 'node:os'
+
+import path from 'node:path'
 
 const homedir = os.homedir()
 
