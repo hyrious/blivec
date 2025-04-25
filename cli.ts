@@ -361,65 +361,65 @@ function listen(id: number, { json = false } = {}) {
 
   const events: Partial<bl.Events> = json
     ? {
-        init: data => console.log(JSON.stringify({ cmd: 'init', data })),
-        message: data => console.log(JSON.stringify(data)),
-        error: log.catchError,
-      }
+      init: data => console.log(JSON.stringify({ cmd: 'init', data })),
+      message: data => console.log(JSON.stringify(data)),
+      error: log.catchError,
+    }
     : {
-        init({ title, live_status, live_start_time, host_list }, index) {
-          if (count === 0) {
-            if (live_status === 1) {
-              const time = new Date(live_start_time * 1000).toLocaleString()
-              log.info(`listening ${title} (start at ${time})`)
-            }
-            else {
-              log.info(`listening ${title} (offline)`)
-            }
-
-            bl.danmakuHistory(id)
-              .then((messages) => {
-                for (const { timeline, nickname, text } of messages) {
-                  const time = timeline.slice(-8, -3)
-                  console.log(`[${time}] [${nickname}]`, text)
-                }
-                log.info('history end')
-              })
-              .catch(bl.noop)
-
-            repl().on('line', (line) => {
-              line = line.trim()
-              if (line === 'rs') {
-                con.reconnect()
-              }
-              else if (line.startsWith('> ') && line.length > 2) {
-                readline.moveCursor(process.stdout, 0, -1) // move up
-                readline.clearLine(process.stdout, 0) // clear the user input
-                line = line.slice(2)
-                bl.sendDanmaku(id, line, getCookie()).catch(log.catchError)
-              }
-              else {
-                log.info('message needs to start with "> " (space is required)')
-              }
-            })
+      init({ title, live_status, live_start_time, host_list }, index) {
+        if (count === 0) {
+          if (live_status === 1) {
+            const time = new Date(live_start_time * 1000).toLocaleString()
+            log.info(`listening ${title} (start at ${time})`)
           }
           else {
-            log.info(`reconnected (x${count})`)
+            log.info(`listening ${title} (offline)`)
           }
-          count++
-          const { host, port } = host_list[index]
-          log.debug(`connecting tcp://${host}:${port}`)
-        },
-        message(a) {
-          if (typeof a === 'object' && a && a.cmd.startsWith('DANMU_MSG')) {
-            const time = new Date(a.info[0][4]).toLocaleString('zh-CN').slice(-8, -3)
-            const message = a.info[1]
-            const user = a.info[2][1]
-            console.log(`[${time}] [${user}]`, message)
-          }
-        },
-        error: log.catchError,
-        quit: closeRepl,
-      }
+
+          bl.danmakuHistory(id)
+            .then((messages) => {
+              for (const { timeline, nickname, text } of messages) {
+                const time = timeline.slice(-8, -3)
+                console.log(`[${time}] [${nickname}]`, text)
+              }
+              log.info('history end')
+            })
+            .catch(bl.noop)
+
+          repl().on('line', (line) => {
+            line = line.trim()
+            if (line === 'rs') {
+              con.reconnect()
+            }
+            else if (line.startsWith('> ') && line.length > 2) {
+              readline.moveCursor(process.stdout, 0, -1) // move up
+              readline.clearLine(process.stdout, 0) // clear the user input
+              line = line.slice(2)
+              bl.sendDanmaku(id, line, getCookie()).catch(log.catchError)
+            }
+            else {
+              log.info('message needs to start with "> " (space is required)')
+            }
+          })
+        }
+        else {
+          log.info(`reconnected (x${count})`)
+        }
+        count++
+        const { host, port } = host_list[index]
+        log.debug(`connecting tcp://${host}:${port}`)
+      },
+      message(a) {
+        if (typeof a === 'object' && a && a.cmd.startsWith('DANMU_MSG')) {
+          const time = new Date(a.info[0][4]).toLocaleString('zh-CN').slice(-8, -3)
+          const message = a.info[1]
+          const user = a.info[2][1]
+          console.log(`[${time}] [${user}]`, message)
+        }
+      },
+      error: log.catchError,
+      quit: closeRepl,
+    }
 
   con = new bl.Connection(id, events)
 

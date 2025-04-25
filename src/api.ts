@@ -1,11 +1,34 @@
 import type { OutgoingHttpHeaders } from 'node:http'
 import crypto from 'node:crypto'
 import { get, json, post } from './utils.js'
+// import { W_RID, Wbi, WTS } from './wbi.js'
 
 const User_Agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1'
 const Referer_Home = 'https://www.bilibili.com/'
 
 const api_nav = 'https://api.bilibili.com/x/web-interface/nav'
+
+// const WBI_UPDATE_INTERVAL = 2 * 60 * 60 * 1000 // 2 hours
+// const wbi = new Wbi()
+// let wbi_last_update = 0
+
+// function wbi_extract(url: string): string {
+//   const i = url.lastIndexOf('/')
+//   const j = url.indexOf('.', i)
+//   if (i >= 0 && j >= 0)
+//     return url.slice(i + 1, j)
+//   throw new Error('Failed to get wbi key')
+// }
+// async function wbi_update() {
+//   if (Date.now() > wbi_last_update + WBI_UPDATE_INTERVAL) {
+//     const res = await get(api_nav)
+//     const { data: { wbi_img: { img_url, sub_url } } } = JSON.parse(res)
+//     const img = wbi_extract(img_url)
+//     const sub = wbi_extract(sub_url)
+//     wbi.updateKey(img, sub)
+//     wbi_last_update = Date.now()
+//   }
+// }
 
 export interface Cookie {
   SESSDATA: string
@@ -57,8 +80,39 @@ export interface RoomInfo {
 }
 
 export async function getRoomInfo(id: number) {
-  const res = await get(`${live_v1}/getInfoByRoom?room_id=${id}`, { headers: { 'User-Agent': User_Agent } })
-  return json<{ room_info: RoomInfo }>(res).room_info
+  // const url = new URL(`${live_v1}/getInfoByRoom?room_id=${id}&web_location=444.8`)
+  // const [ts, sign] = wbi.sign(url.searchParams)
+  // url.searchParams.set(W_RID, sign)
+  // url.searchParams.set(WTS, ts)
+  // const res = await get(url.toString(), { headers: { 'User-Agent': User_Agent } })
+  // return json<{ room_info: RoomInfo }>(res).room_info
+  const html = await get(`${Referer_Live}/${id}`, { headers: { 'User-Agent': User_Agent } })
+  const prefix = '"room_info":{'
+  const i = html.indexOf(prefix)
+  if (i >= 0) {
+    const start = i + prefix.length - 1
+    const end = match_brace(html, start, '{', '}')
+    if (end >= 0) {
+      const json_str = html.slice(start, end + 1)
+      return JSON.parse(json_str) as RoomInfo
+    }
+  }
+  throw new Error('Failed to get room info')
+}
+
+function match_brace(str: string, start: number, open: string, close: string): number {
+  let depth = 0
+  for (let i = start; i < str.length; ++i) {
+    if (str[i] === open) {
+      ++depth
+    }
+    else if (str[i] === close) {
+      --depth
+      if (depth === 0)
+        return i
+    }
+  }
+  return -1
 }
 
 const live_send = 'https://api.live.bilibili.com/msg/send'

@@ -1,9 +1,11 @@
+import type { Socket } from 'node:net'
+import type { DanmuInfo, Me, RoomInfo } from './api.js'
 import { Buffer } from 'node:buffer'
-import { createConnection, type Socket } from 'node:net'
+import { createConnection } from 'node:net'
 import { promisify } from 'node:util'
-import { brotliDecompress, inflate } from 'node:zlib'
 
-import { type DanmuInfo, getDanmuInfo, getMe, getRoomInfo, type Me, type RoomInfo } from './api.js'
+import { brotliDecompress, inflate } from 'node:zlib'
+import { getDanmuInfo, getMe, getRoomInfo } from './api.js'
 import { read_cookie } from './config.js'
 
 const inflateAsync = /* @__PURE__ */ promisify(inflate)
@@ -26,6 +28,7 @@ const type_to_op: Record<string, number> = {
 
 const HEARTBEAT_INTERVAL = 10e3
 const CONNECT_TIMEOUT = 15e3
+const FAIL_FAST_TIMEOUT = 5e3
 
 export type ConnectionInfo = Partial<Me> & RoomInfo & DanmuInfo
 
@@ -36,7 +39,7 @@ export interface Events {
   quit: () => void
 }
 
-export function noop() {}
+export function noop() { }
 
 export class Connection {
   socket: Socket | null = null
@@ -49,6 +52,8 @@ export class Connection {
 
   _closed = false
   _connect_index = 0
+  _connected_time = 0
+  _lastError: Error | null = null
 
   events: Events
 
@@ -60,7 +65,19 @@ export class Connection {
     this.reconnect()
   }
 
-  async connect() {
+  async connect(): Promise<Socket | null> {
+    if (this._connected_time && Date.now() - this._connected_time < FAIL_FAST_TIMEOUT && this._connect_index === 0) {
+      if (this._lastError)
+        this._on_error(this._lastError)
+      this.close()
+      return null
+    }
+
+    if (this._connect_index === 0) {
+      this._connected_time = Date.now()
+      this._lastError = null
+    }
+
     const { uname, mid }: Partial<Me> = this.cookie ? await getMe(this.cookie) : {}
 
     const { room_id, title, ...rest } = await getRoomInfo(this.roomId)
@@ -84,7 +101,10 @@ export class Connection {
       this.socket = null
     }
 
-    const socket = await this.connect().catch(() => null)
+    const socket = await this.connect().catch((e) => {
+      this._lastError = e
+      return null
+    })
     if (socket === null) {
       this._on_close()
       return

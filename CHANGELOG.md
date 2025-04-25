@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.9
+
+- Fix: danmu was missing again.
+- Improve fast fail check.
+
 ## 0.4.8
 
 - Fix: danmu was missing because one API adds UA check.
