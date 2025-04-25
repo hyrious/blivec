@@ -1,8 +1,8 @@
 {
   "extends": "@hyrious/configs/tsconfig.casual.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "Node16",
+    "target": "ES2024",
+    "module": "Node18",
     "types": ["node"]
   }
 }

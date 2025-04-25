@@ -12,7 +12,7 @@ function text(resolve: (value: string) => void) {
     const chunks: Buffer[] = []
     for await (const chunk of res) chunks.push(chunk)
 
-    let buffer = Buffer.concat(chunks)
+    let buffer: Buffer = Buffer.concat(chunks)
     if (buffer[0] === 0x1F && buffer[1] === 0x8B)
       buffer = await gunzip(buffer)
 
