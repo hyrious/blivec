@@ -1,7 +1,7 @@
 {
   "name": "@hyrious/blivec",
   "type": "module",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "packageManager": "pnpm@10.9.0",
   "description": "bilibili live cli",
   "author": "hyrious <hyrious@outlook.com>",
