@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.10
+
+- Fix room info again.
+
 ## 0.4.9
 
 - Fix: danmu was missing again.

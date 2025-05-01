@@ -23,7 +23,8 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc -p ./src && esbuild-dev build.ts"
+    "build": "tsc -p ./src && esbuild-dev build.ts",
+    "lint": "eslint --fix"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.12.0",

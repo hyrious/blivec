@@ -66,53 +66,32 @@ export async function getDanmuInfo(id: number, { SESSDATA, bili_jct }: Partial<C
   return json<DanmuInfo>(res)
 }
 
+const room_v1 = 'https://api.live.bilibili.com/room/v1/room'
+
 export interface RoomInfo {
   room_id: number
   title: string
   uid: number
-  cover: string
+  user_cover: string
   background: string
   description: string
   /** 0: offline, 1: online, 2: playing_uploaded_videos */
   live_status: 0 | 1 | 2
-  /** start_time = new Date(live_start_time * 1000) */
-  live_start_time: number
+  /** `YYYY-MM-DD HH:mm:ss` */
+  live_time: string
 }
 
 export async function getRoomInfo(id: number) {
-  // const url = new URL(`${live_v1}/getInfoByRoom?room_id=${id}&web_location=444.8`)
-  // const [ts, sign] = wbi.sign(url.searchParams)
-  // url.searchParams.set(W_RID, sign)
-  // url.searchParams.set(WTS, ts)
-  // const res = await get(url.toString(), { headers: { 'User-Agent': User_Agent } })
-  // return json<{ room_info: RoomInfo }>(res).room_info
-  const html = await get(`${Referer_Live}/${id}`, { headers: { 'User-Agent': User_Agent } })
-  const prefix = '"room_info":{'
-  const i = html.indexOf(prefix)
-  if (i >= 0) {
-    const start = i + prefix.length - 1
-    const end = match_brace(html, start, '{', '}')
-    if (end >= 0) {
-      const json_str = html.slice(start, end + 1)
-      return JSON.parse(json_str) as RoomInfo
-    }
+  const headers: OutgoingHttpHeaders = {
+    'User-Agent': User_Agent,
+    'Referer': `${Referer_Live}/${id}`,
   }
-  throw new Error('Failed to get room info')
-}
-
-function match_brace(str: string, start: number, open: string, close: string): number {
-  let depth = 0
-  for (let i = start; i < str.length; ++i) {
-    if (str[i] === open) {
-      ++depth
-    }
-    else if (str[i] === close) {
-      --depth
-      if (depth === 0)
-        return i
-    }
+  if (id < 10000) {
+    const res = await get(`${room_v1}/room_init?id=${id}`, { headers })
+    id = json<{ room_id: number }>(res).room_id
   }
-  return -1
+  const res = await get(`${room_v1}/get_info?room_id=${id}&from=room`, { headers })
+  return json<RoomInfo>(res)
 }
 
 const live_send = 'https://api.live.bilibili.com/msg/send'
@@ -178,7 +157,6 @@ export async function getFeedList({ SESSDATA, bili_jct }: Cookie): Promise<FeedL
   return items
 }
 
-const room_v1 = 'https://api.live.bilibili.com/room/v1/room'
 const live_v2 = 'https://api.live.bilibili.com/xlive/web-room/v2/index'
 
 interface PlayUrlInfo {

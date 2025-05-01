@@ -366,14 +366,13 @@ function listen(id: number, { json = false } = {}) {
       error: log.catchError,
     }
     : {
-      init({ title, live_status, live_start_time, host_list }, index) {
+      init({ room_id, title, live_status, live_time, host_list }, index) {
         if (count === 0) {
           if (live_status === 1) {
-            const time = new Date(live_start_time * 1000).toLocaleString()
-            log.info(`listening ${title} (start at ${time})`)
+            log.info(`listening ${title} (${room_id}, start at ${live_time})`)
           }
           else {
-            log.info(`listening ${title} (offline)`)
+            log.info(`listening ${title} (${room_id}, offline)`)
           }
 
           bl.danmakuHistory(id)
