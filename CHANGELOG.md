@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.11
+
+- Fix danmu info.
+
 ## 0.4.10
 
 - Fix room info again.

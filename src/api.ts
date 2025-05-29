@@ -1,34 +1,34 @@
 import type { OutgoingHttpHeaders } from 'node:http'
 import crypto from 'node:crypto'
 import { get, json, post } from './utils.js'
-// import { W_RID, Wbi, WTS } from './wbi.js'
+import { W_RID, Wbi, WTS } from './wbi.js'
 
-const User_Agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:60.1) Gecko/20100101 Firefox/60.1'
+const User_Agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0'
 const Referer_Home = 'https://www.bilibili.com/'
 
 const api_nav = 'https://api.bilibili.com/x/web-interface/nav'
 
-// const WBI_UPDATE_INTERVAL = 2 * 60 * 60 * 1000 // 2 hours
-// const wbi = new Wbi()
-// let wbi_last_update = 0
+const WBI_UPDATE_INTERVAL = 2 * 60 * 60 * 1000 // 2 hours
+const wbi = new Wbi()
+let wbi_last_update = 0
 
-// function wbi_extract(url: string): string {
-//   const i = url.lastIndexOf('/')
-//   const j = url.indexOf('.', i)
-//   if (i >= 0 && j >= 0)
-//     return url.slice(i + 1, j)
-//   throw new Error('Failed to get wbi key')
-// }
-// async function wbi_update() {
-//   if (Date.now() > wbi_last_update + WBI_UPDATE_INTERVAL) {
-//     const res = await get(api_nav)
-//     const { data: { wbi_img: { img_url, sub_url } } } = JSON.parse(res)
-//     const img = wbi_extract(img_url)
-//     const sub = wbi_extract(sub_url)
-//     wbi.updateKey(img, sub)
-//     wbi_last_update = Date.now()
-//   }
-// }
+function wbi_extract(url: string): string {
+  const i = url.lastIndexOf('/')
+  const j = url.indexOf('.', i)
+  if (i >= 0 && j >= 0)
+    return url.slice(i + 1, j)
+  throw new Error('Failed to get wbi key')
+}
+async function wbi_update() {
+  if (Date.now() > wbi_last_update + WBI_UPDATE_INTERVAL) {
+    const res = await get(api_nav)
+    const { data: { wbi_img: { img_url, sub_url } } } = JSON.parse(res)
+    const img = wbi_extract(img_url)
+    const sub = wbi_extract(sub_url)
+    wbi.updateKey(img, sub)
+    wbi_last_update = Date.now()
+  }
+}
 
 export interface Cookie {
   SESSDATA: string
@@ -62,7 +62,11 @@ export async function getDanmuInfo(id: number, { SESSDATA, bili_jct }: Partial<C
     'Referer': `${Referer_Live}/${id}`,
     'Cookie': `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}`,
   }
-  const res = await get(`${live_v1}/getDanmuInfo?id=${id}`, { headers })
+  const url = new URL(`${live_v1}/getDanmuInfo?id=${id}`)
+  const [ts, sign] = wbi.sign(url.searchParams)
+  url.searchParams.set(W_RID, sign)
+  url.searchParams.set(WTS, ts)
+  const res = await get(url.toString(), { headers })
   return json<DanmuInfo>(res)
 }
 
@@ -82,6 +86,7 @@ export interface RoomInfo {
 }
 
 export async function getRoomInfo(id: number) {
+  await wbi_update()
   const headers: OutgoingHttpHeaders = {
     'User-Agent': User_Agent,
     'Referer': `${Referer_Live}/${id}`,
