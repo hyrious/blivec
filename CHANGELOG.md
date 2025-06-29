@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.12
+
+- Fix danmu info again.
+
 ## 0.4.11
 
 - Fix danmu info.
