@@ -56,11 +56,11 @@ export interface DanmuInfo {
   host_list: { host: string, port: number }[]
 }
 
-export async function getDanmuInfo(id: number, { SESSDATA, bili_jct }: Partial<Cookie> = {}) {
+export async function getDanmuInfo(id: number, { SESSDATA, bili_jct, buvid3 }: Partial<Cookie> = {}) {
   const headers = {
     'User-Agent': User_Agent,
     'Referer': `${Referer_Live}/${id}`,
-    'Cookie': `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}`,
+    'Cookie': `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}; buvid3=${buvid3}`,
   }
   const url = new URL(`${live_v1}/getDanmuInfo?id=${id}`)
   const [ts, sign] = wbi.sign(url.searchParams)
