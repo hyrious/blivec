@@ -62,6 +62,7 @@ ${blackBgWhite('Usage:')} bl <command> [arguments]
   ${bold('bl feed')}                 get feed list (requires cookie)
   ${bold('   --json')}               print feeds in json
   ${bold('   --d')}                  ask for dd mode
+  ${bold('   -- [...dd_args]')}      see below
 
   ${bold('bl d <room_id>')}          dd mode
   ${bold('   --interval=1')}         polling interval in minutes, 0 means once
@@ -222,6 +223,7 @@ const headers: OutgoingHttpHeaders = {
 const headersCmdline = Object.entries(headers).map(([k, v]) => `${k}: ${v}`)
 
 function spawnPlayer(mpv: boolean, url: string, title: string, extra: string[]) {
+  let error: Error | null = null
   if (mpv) {
     const args = ['--quiet']
     args.push(`--http-header-fields=${headersCmdline.join(',')}`)
@@ -229,7 +231,12 @@ function spawnPlayer(mpv: boolean, url: string, title: string, extra: string[]) 
     args.push('--geometry=50%')
     args.push(...extra)
     args.push(url)
-    return cp.spawn('mpv', args, { stdio: 'ignore', detached: true })
+    try {
+      return cp.spawn('mpv', args, { stdio: 'ignore', detached: true })
+    }
+    catch (err) {
+      error = err as Error
+    }
   }
   else {
     const args = ['-hide_banner', '-loglevel', 'error']
@@ -238,8 +245,23 @@ function spawnPlayer(mpv: boolean, url: string, title: string, extra: string[]) 
     args.push('-x', '720', '-y', '405')
     args.push(...extra)
     args.push(url)
-    return cp.spawn('ffplay', args, { stdio: 'ignore' })
+    try {
+      return cp.spawn('ffplay', args, { stdio: 'ignore' })
+    }
+    catch (err) {
+      error = err as Error
+    }
   }
+  if (error) {
+    log.error(`Failed to spawn player: ${error.message}`)
+    if ((error as { code?: string }).code === 'ENOENT') {
+      log.error(mpv ? 'Try `scoop install mpv`' : 'Try `scoop install ffmpeg`')
+    }
+  }
+  else {
+    log.error('Failed to spawn player for unknown reason')
+  }
+  process.exit(1)
 }
 
 async function getVideo(url: string, { play = false, json = false, yes = false, mpv = false, format = 'mp4', quality = '480p', args = [] as string[] } = {}) {

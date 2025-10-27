@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.13
+
+- Print helpful message when spawn player failed.
+
 ## 0.4.12
 
 - Fix danmu info again.

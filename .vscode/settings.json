@@ -26,5 +26,11 @@
     "json",
     "jsonc",
     "yaml"
-  ]
+  ],
+  "[typescript]": {
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    }
+  }
 }

@@ -109,8 +109,8 @@ export function sendDanmaku(id: number, message: string, { SESSDATA, bili_jct }:
   }
   const body
     = `bubble=0&color=16777215&fontsize=25&mode=1`
-    + `&msg=${encodeURIComponent(message)}`
-    + `&rnd=${t}&roomid=${id}&csrf=${bili_jct}&csrf_token=${bili_jct}`
+      + `&msg=${encodeURIComponent(message)}`
+      + `&rnd=${t}&roomid=${id}&csrf=${bili_jct}&csrf_token=${bili_jct}`
   return post(live_send, body, { headers })
 }
 
@@ -222,7 +222,7 @@ export async function getRoomPlayInfo(id: number) {
 
     const url
       = `${live_v2}/getRoomPlayInfo?room_id=${room_id}&qn=${qn}`
-      + `&platform=web&protocol=0,1&format=0,1,2&codec=0,1&ptype=8&dolby=5`
+        + `&platform=web&protocol=0,1&format=0,1,2&codec=0,1&ptype=8&dolby=5`
     const res = await get(url)
     const { g_qn_desc, stream } = json<PlayUrlInfo>(res).playurl_info.playurl
     const qn_desc = Object.fromEntries(g_qn_desc.map(e => [e.qn, e.desc]))
