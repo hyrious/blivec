@@ -2,7 +2,6 @@
   "name": "@hyrious/blivec",
   "type": "module",
   "version": "0.4.13",
-  "packageManager": "pnpm@10.19.0",
   "description": "bilibili live cli",
   "author": "hyrious <hyrious@outlook.com>",
   "license": "MIT",
@@ -27,13 +26,13 @@
     "lint": "eslint --fix"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^6.1.0",
-    "@hyrious/configs": "^0.1.4",
-    "@hyrious/esbuild-dev": "^0.10.13",
+    "@antfu/eslint-config": "^9.5.1",
+    "@hyrious/configs": "^0.1.6",
+    "@hyrious/esbuild-dev": "^0.10.14",
     "@hyrious/esbuild-plugin-external": "^0.1.4",
-    "@types/node": "^24.9.1",
-    "esbuild": "^0.25.11",
-    "eslint": "^9.38.0",
-    "typescript": "^5.9.3"
+    "@types/node": "^26.5.1",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.10.0",
+    "typescript": "^6.0.3"
   }
 }
